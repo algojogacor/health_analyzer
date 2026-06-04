@@ -1,0 +1,4 @@
+interface:
+  display_name: "Health Analyzer Skill"
+  short_description: "Generate safe wearable health summaries from Turso data."
+  default_prompt: "Generate today's health summary from my Turso health_records data."

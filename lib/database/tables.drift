@@ -1,0 +1,327 @@
+-- Health Analyzer - Local Database Schema
+-- Stores health data offline before syncing to Turso
+
+CREATE TABLE health_records (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+
+    -- Data type: HEART_RATE, SPO2, STEPS, SLEEP_DEEP, SLEEP_LIGHT, SLEEP_REM,
+    --            SLEEP_AWAKE, CALORIES, STRESS, DISTANCE
+    data_type TEXT NOT NULL,
+
+    -- Numeric value for most types. For sleep, this is duration in minutes
+    value REAL NOT NULL,
+
+    -- Unit: BPM, PERCENT, COUNT, MINUTES, KCAL, METERS
+    unit TEXT NOT NULL,
+
+    -- Time range
+    date_from DATETIME NOT NULL,
+    date_to DATETIME NOT NULL,
+
+    -- Source info
+    source_name TEXT,
+    source_id TEXT,
+
+    -- Sync status: 'pending', 'synced', 'failed'
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+
+    -- Metadata JSON (extra fields like sleep stage details)
+    metadata TEXT,
+
+    -- Timestamps
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    synced_at DATETIME
+);
+
+-- Index for efficient queries
+CREATE INDEX idx_records_type_time ON health_records(data_type, date_from);
+CREATE INDEX idx_records_sync ON health_records(sync_status);
+
+CREATE TABLE sync_logs (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    operation TEXT NOT NULL,
+    status TEXT NOT NULL,
+    started_at DATETIME NOT NULL,
+    finished_at DATETIME,
+    collected_count INTEGER NOT NULL DEFAULT 0,
+    inserted_count INTEGER NOT NULL DEFAULT 0,
+    synced_count INTEGER NOT NULL DEFAULT 0,
+    message TEXT
+);
+
+CREATE INDEX idx_sync_logs_started ON sync_logs(started_at);
+
+CREATE TABLE activity_sessions (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    local_id TEXT NOT NULL UNIQUE,
+    title TEXT,
+    sport_key TEXT NOT NULL,
+    sport_name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    requires_gps BOOLEAN NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'draft',
+    started_at DATETIME NOT NULL,
+    ended_at DATETIME,
+    elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+    moving_seconds INTEGER NOT NULL DEFAULT 0,
+    stopped_seconds INTEGER NOT NULL DEFAULT 0,
+    distance_meters REAL NOT NULL DEFAULT 0,
+    calories_kcal REAL NOT NULL DEFAULT 0,
+    ascent_meters REAL NOT NULL DEFAULT 0,
+    descent_meters REAL NOT NULL DEFAULT 0,
+    avg_speed_mps REAL,
+    max_speed_mps REAL,
+    avg_heart_rate REAL,
+    max_heart_rate REAL,
+    manual_paused_seconds INTEGER NOT NULL DEFAULT 0,
+    notes TEXT,
+    feeling TEXT,
+    rpe INTEGER,
+    gear_id TEXT,
+    source TEXT NOT NULL DEFAULT 'phone_gps',
+    route_visibility TEXT NOT NULL DEFAULT 'private',
+    hide_start_end_meters REAL NOT NULL DEFAULT 300,
+    sync_route_detail BOOLEAN NOT NULL DEFAULT 0,
+    write_health_connect BOOLEAN NOT NULL DEFAULT 1,
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    metadata TEXT,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    synced_at DATETIME
+);
+
+CREATE TABLE activity_events (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    session_local_id TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    timestamp DATETIME NOT NULL,
+    metadata TEXT,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE TABLE activity_points (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    session_local_id TEXT NOT NULL,
+    timestamp DATETIME NOT NULL,
+    latitude REAL NOT NULL,
+    longitude REAL NOT NULL,
+    altitude_meters REAL,
+    altitude_corrected_meters REAL,
+    accuracy_meters REAL,
+    speed_mps REAL,
+    bearing_degrees REAL,
+    distance_from_prev_meters REAL NOT NULL DEFAULT 0,
+    moving BOOLEAN NOT NULL DEFAULT 1,
+    point_quality TEXT NOT NULL DEFAULT 'unknown',
+    provider TEXT,
+    metadata TEXT,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now'))
+);
+
+CREATE TABLE activity_summaries (
+    session_local_id TEXT NOT NULL PRIMARY KEY,
+    json_summary TEXT NOT NULL,
+    markdown_summary TEXT NOT NULL,
+    generated_at DATETIME NOT NULL,
+    model TEXT,
+    confidence TEXT,
+    generated_by TEXT NOT NULL DEFAULT 'local',
+    agent_notes TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    synced_at DATETIME
+);
+
+CREATE TABLE offline_map_regions (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    bounds TEXT NOT NULL,
+    min_zoom INTEGER NOT NULL,
+    max_zoom INTEGER NOT NULL,
+    style TEXT NOT NULL,
+    storage_bytes INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'planned',
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME
+);
+
+CREATE TABLE saved_routes (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    local_id TEXT NOT NULL UNIQUE,
+    source_session_local_id TEXT,
+    name TEXT NOT NULL,
+    sport_key TEXT,
+    distance_meters REAL NOT NULL DEFAULT 0,
+    ascent_meters REAL NOT NULL DEFAULT 0,
+    descent_meters REAL NOT NULL DEFAULT 0,
+    point_count INTEGER NOT NULL DEFAULT 0,
+    route_visibility TEXT NOT NULL DEFAULT 'private',
+    hide_start_end_meters REAL NOT NULL DEFAULT 300,
+    summary_json TEXT,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME
+);
+
+CREATE TABLE daily_summaries (
+    local_date TEXT NOT NULL PRIMARY KEY,
+    json_summary TEXT NOT NULL,
+    markdown_summary TEXT NOT NULL,
+    generated_at DATETIME NOT NULL,
+    model TEXT,
+    confidence TEXT,
+    sync_status TEXT NOT NULL DEFAULT 'pending',
+    synced_at DATETIME
+);
+
+CREATE TABLE ai_tool_calls (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    conversation_id TEXT,
+    message_id TEXT,
+    usage_window_id TEXT,
+    tier TEXT NOT NULL DEFAULT 'free',
+    tool_name TEXT NOT NULL,
+    input_json TEXT NOT NULL,
+    result_json TEXT NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    model TEXT,
+    token_input INTEGER NOT NULL DEFAULT 0,
+    token_output INTEGER NOT NULL DEFAULT 0,
+    estimated_cost REAL NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'success'
+);
+
+CREATE TABLE ai_usage_windows (
+    window_id TEXT NOT NULL PRIMARY KEY,
+    tier TEXT NOT NULL DEFAULT 'free',
+    started_at DATETIME NOT NULL,
+    resets_at DATETIME,
+    tool_calls_used INTEGER NOT NULL DEFAULT 0,
+    input_tokens INTEGER NOT NULL DEFAULT 0,
+    output_tokens INTEGER NOT NULL DEFAULT 0,
+    estimated_cost REAL NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME
+);
+
+CREATE TABLE community_share_records (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    local_id TEXT NOT NULL UNIQUE,
+    session_local_id TEXT,
+    share_id TEXT,
+    public_url TEXT,
+    payload_json TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'draft',
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    shared_at DATETIME
+);
+
+CREATE TABLE challenge_invites (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    local_id TEXT NOT NULL UNIQUE,
+    challenge_id TEXT,
+    title TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    target_value REAL NOT NULL DEFAULT 0,
+    invite_url TEXT,
+    status TEXT NOT NULL DEFAULT 'draft',
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    expires_at DATETIME
+);
+
+CREATE INDEX idx_activity_sessions_status ON activity_sessions(status, started_at);
+CREATE INDEX idx_activity_sessions_sync ON activity_sessions(sync_status);
+CREATE INDEX idx_activity_points_session_time ON activity_points(session_local_id, timestamp);
+CREATE INDEX idx_activity_events_session_time ON activity_events(session_local_id, timestamp);
+CREATE INDEX idx_activity_summaries_sync ON activity_summaries(sync_status);
+CREATE INDEX idx_offline_map_regions_status ON offline_map_regions(status);
+CREATE INDEX idx_saved_routes_source ON saved_routes(source_session_local_id);
+CREATE INDEX idx_daily_summaries_sync ON daily_summaries(sync_status);
+CREATE INDEX idx_ai_tool_calls_created ON ai_tool_calls(created_at);
+CREATE INDEX idx_ai_tool_calls_window ON ai_tool_calls(usage_window_id);
+CREATE INDEX idx_ai_usage_windows_tier_started ON ai_usage_windows(tier, started_at);
+CREATE INDEX idx_community_share_session ON community_share_records(session_local_id);
+CREATE INDEX idx_challenge_invites_status ON challenge_invites(status);
+
+-- Query: get unsynced records
+unsyncedRecords: SELECT * FROM health_records WHERE sync_status = 'pending' ORDER BY date_from ASC;
+
+-- Query: get records by type and date range
+recordsByType:
+    SELECT * FROM health_records
+    WHERE data_type = ? AND date_from >= ? AND date_from <= ?
+    ORDER BY date_from DESC;
+
+-- Query: mark records as synced
+markSynced:
+    UPDATE health_records
+    SET sync_status = 'synced', synced_at = strftime('%s', 'now')
+    WHERE id IN ?;
+
+-- Query: count unsynced records
+unsyncedCount: SELECT COUNT(*) AS cnt FROM health_records WHERE sync_status = 'pending';
+
+latestSyncLogs:
+    SELECT * FROM sync_logs ORDER BY started_at DESC LIMIT ?;
+
+activeActivitySession:
+    SELECT * FROM activity_sessions
+    WHERE status = 'recording' OR status = 'paused'
+    ORDER BY started_at DESC
+    LIMIT 1;
+
+activitySessionsRecent:
+    SELECT * FROM activity_sessions WHERE status = 'completed' ORDER BY started_at DESC LIMIT ?;
+
+activitySessionByLocalId:
+    SELECT * FROM activity_sessions
+    WHERE local_id = ?
+    LIMIT 1;
+
+activityPointsForSession:
+    SELECT * FROM activity_points
+    WHERE session_local_id = ?
+    ORDER BY timestamp ASC;
+
+activitySummaryBySession:
+    SELECT * FROM activity_summaries
+    WHERE session_local_id = ?
+    LIMIT 1;
+
+savedRoutesRecent:
+    SELECT * FROM saved_routes
+    ORDER BY created_at DESC
+    LIMIT ?;
+
+savedRouteByLocalId:
+    SELECT * FROM saved_routes
+    WHERE local_id = ?
+    LIMIT 1;
+
+dailySummaryByDate:
+    SELECT * FROM daily_summaries
+    WHERE local_date = ?
+    LIMIT 1;
+
+aiUsageWindowById:
+    SELECT * FROM ai_usage_windows
+    WHERE window_id = ?
+    LIMIT 1;
+
+latestAiUsageWindowForTier:
+    SELECT * FROM ai_usage_windows
+    WHERE tier = ?
+    ORDER BY started_at DESC
+    LIMIT 1;
+
+communitySharesRecent:
+    SELECT * FROM community_share_records
+    ORDER BY created_at DESC
+    LIMIT ?;
+
+challengeInvitesRecent:
+    SELECT * FROM challenge_invites
+    ORDER BY created_at DESC
+    LIMIT ?;
+
+-- Query: clean old synced records (older than N days)
+cleanOldRecords:
+    DELETE FROM health_records
+    WHERE sync_status = 'synced' AND created_at < DATETIME('now', ?);

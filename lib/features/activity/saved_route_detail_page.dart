@@ -117,7 +117,7 @@ class _RouteStats extends StatelessWidget {
                     ),
                     Text(
                       '$geometrySource / ${route.routeVisibility}',
-                      style: const TextStyle(color: AppTheme.muted),
+                      style: TextStyle(color: AppTheme.mutedText(context)),
                     ),
                   ],
                 ),
@@ -207,8 +207,8 @@ class _ElevationPreview extends StatelessWidget {
               ),
               Text(
                 '${samples.length} samples',
-                style: const TextStyle(
-                  color: AppTheme.muted,
+                style: TextStyle(
+                  color: AppTheme.mutedText(context),
                   fontWeight: FontWeight.w800,
                 ),
               ),
@@ -223,7 +223,7 @@ class _ElevationPreview extends StatelessWidget {
                 samples: samples,
                 lineColor: AppTheme.mint,
                 fillColor: AppTheme.mint.withValues(alpha: 0.16),
-                gridColor: AppTheme.line,
+                gridColor: AppTheme.border(context),
               ),
             ),
           ),
@@ -428,9 +428,9 @@ class _StatBox extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.canvas,
+        color: AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -439,8 +439,8 @@ class _StatBox extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
-                color: AppTheme.muted,
+              style: TextStyle(
+                color: AppTheme.mutedText(context),
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),

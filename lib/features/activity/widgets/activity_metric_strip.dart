@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../../shared/theme/app_theme.dart';
+
 class ActivityMetric {
   final String label;
   final String value;
@@ -45,9 +47,9 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: AppTheme.card(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -73,7 +75,7 @@ class _MetricCard extends StatelessWidget {
                     metric.label,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(color: Colors.grey.shade600),
+                    style: TextStyle(color: AppTheme.mutedText(context)),
                   ),
                   const SizedBox(height: 3),
                   Text(

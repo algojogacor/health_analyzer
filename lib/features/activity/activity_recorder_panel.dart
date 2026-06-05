@@ -121,6 +121,7 @@ class _StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mutedColor = AppTheme.mutedText(context);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -130,7 +131,7 @@ class _StatusPill extends StatelessWidget {
       child: Text(
         label,
         style: TextStyle(
-          color: color == AppTheme.muted ? AppTheme.ink : color,
+          color: color == AppTheme.muted ? mutedColor : color,
           fontWeight: FontWeight.w900,
           fontSize: 12,
         ),
@@ -204,9 +205,9 @@ class _PreStartChecklist extends StatelessWidget {
     final accuracy = snapshot?.lastAccuracyMeters;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.canvas,
+        color: AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -269,7 +270,7 @@ class _ChecklistRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: const TextStyle(color: AppTheme.ink, fontSize: 13),
+              style: TextStyle(color: AppTheme.text(context), fontSize: 13),
             ),
           ),
         ],
@@ -295,7 +296,7 @@ class _SmallPill extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: AppTheme.ink,
+            color: AppTheme.text(context),
             fontWeight: FontWeight.w800,
             fontSize: 12,
           ),
@@ -310,22 +311,26 @@ class _PrivacyInlineNote extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardColor = AppTheme.inverse(context);
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.ink,
+        color: cardColor,
         borderRadius: BorderRadius.circular(8),
       ),
-      child: const Padding(
-        padding: EdgeInsets.all(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
         child: Row(
           children: [
-            Icon(Icons.privacy_tip_outlined, color: Colors.white),
-            SizedBox(width: 10),
+            Icon(
+              Icons.privacy_tip_outlined,
+              color: AppTheme.onInverse(context),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Text(
                 'Private by default. Start/end hidden at 300m; full route sync is opt-in.',
                 style: TextStyle(
-                  color: Colors.white,
+                  color: AppTheme.onInverse(context),
                   fontWeight: FontWeight.w800,
                   height: 1.25,
                 ),

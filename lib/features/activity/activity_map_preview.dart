@@ -173,8 +173,8 @@ class _ActivityMapPreviewState extends ConsumerState<ActivityMapPreview> {
                   : accuracy == null
                   ? 'Location accuracy: searching'
                   : 'Location accuracy: +/- ${accuracy.round()} m',
-              style: const TextStyle(
-                color: AppTheme.muted,
+              style: TextStyle(
+                color: AppTheme.mutedText(context),
                 fontWeight: FontWeight.w700,
               ),
             ),
@@ -201,9 +201,9 @@ class _InlineNotice extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppTheme.canvas,
+        color: AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +221,10 @@ class _InlineNotice extends StatelessWidget {
                 const SizedBox(height: 6),
                 Text(
                   body,
-                  style: const TextStyle(color: AppTheme.muted, height: 1.35),
+                  style: TextStyle(
+                    color: AppTheme.mutedText(context),
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),
@@ -240,7 +243,7 @@ class _LocationBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _colorFor(label);
+    final color = _colorFor(context, label);
     final display =
         accuracy == null ? label : '$label +/- ${accuracy!.round()}m';
 
@@ -261,7 +264,7 @@ class _LocationBadge extends StatelessWidget {
     );
   }
 
-  Color _colorFor(String label) {
+  Color _colorFor(BuildContext context, String label) {
     switch (label) {
       case 'Exact':
         return AppTheme.mint;
@@ -270,9 +273,9 @@ class _LocationBadge extends StatelessWidget {
       case 'Weak':
         return AppTheme.amber;
       case 'Idle':
-        return AppTheme.muted;
+        return AppTheme.mutedText(context);
       default:
-        return AppTheme.muted;
+        return AppTheme.mutedText(context);
     }
   }
 }

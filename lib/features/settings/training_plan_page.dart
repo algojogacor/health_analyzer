@@ -144,7 +144,7 @@ class _CurrentPlanPanel extends StatelessWidget {
                     ),
                     Text(
                       '${plan.level} / ${plan.weeks} weeks / starts ${fmtTime(plan.startDate)}',
-                      style: const TextStyle(color: AppTheme.muted),
+                      style: TextStyle(color: AppTheme.mutedText(context)),
                     ),
                   ],
                 ),
@@ -157,9 +157,9 @@ class _CurrentPlanPanel extends StatelessWidget {
           ),
           const SizedBox(height: 14),
           if (snapshot.today.isEmpty)
-            const Text(
+            Text(
               'No planned workout today.',
-              style: TextStyle(color: AppTheme.muted),
+              style: TextStyle(color: AppTheme.mutedText(context)),
             )
           else
             ...snapshot.today.map((workout) => _WorkoutRow(workout: workout)),
@@ -211,7 +211,7 @@ class _TemplateCard extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   '${template.level} / ${template.weeks} weeks',
-                  style: const TextStyle(color: AppTheme.muted),
+                  style: TextStyle(color: AppTheme.mutedText(context)),
                 ),
                 const SizedBox(height: 8),
                 Text(template.description),
@@ -271,7 +271,10 @@ class _WorkoutRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '${_dateLabel(workout.scheduledDate)} / $target / ${workout.intensity}',
-                  style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                  style: TextStyle(
+                    color: AppTheme.mutedText(context),
+                    fontSize: 12,
+                  ),
                 ),
               ],
             ),

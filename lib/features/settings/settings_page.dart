@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../../shared/theme/app_theme.dart';
+import '../../shared/widgets/premium_card.dart';
 import '../dashboard/widgets/actions_card.dart';
 import '../dashboard/widgets/status_card.dart';
 import 'appearance_settings_page.dart';
@@ -60,226 +62,248 @@ class SettingsPage extends StatelessWidget {
           onStartPeriodicSync: onStartPeriodicSync,
         ),
         const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.contrast_outlined),
-            title: const Text('Appearance'),
-            subtitle: const Text('System, light, or dark mode'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const AppearanceSettingsPage(),
-                ),
-              );
-            },
-          ),
+        _SettingsTile(
+          icon: Icons.contrast_outlined,
+          color: AppTheme.violet,
+          title: 'Appearance',
+          subtitle: 'System, light, or dark mode',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const AppearanceSettingsPage()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.lock_outline,
+          color: AppTheme.cyan,
+          title: 'Privacy defaults',
+          subtitle: 'Route visibility, hidden radius, and sync',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const PrivacySettingsPage()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.flag_outlined,
+          color: AppTheme.mint,
+          title: 'Weekly goals',
+          subtitle: 'Steps, active days, minutes, distance',
+          onTap: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const GoalSettingsPage()));
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.event_note_outlined,
+          color: AppTheme.amber,
+          title: 'Training plan',
+          subtitle: '5K, 10K, and half-marathon templates',
+          onTap: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const TrainingPlanPage()));
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.monitor_heart_outlined,
+          color: AppTheme.coral,
+          title: 'Profile and HR zones',
+          subtitle: 'Max HR, resting HR, zone calculation',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const FitnessProfilePage()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.auto_awesome_outlined,
+          color: AppTheme.violet,
+          title: 'AI settings',
+          subtitle: 'Provider, base URL, model, API key',
+          onTap: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const AiSettingsPage()));
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.notifications_active_outlined,
+          color: AppTheme.cyan,
+          title: 'Notifications',
+          subtitle: 'Sync, recovery, PR, streak, training plan',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => const NotificationSettingsPage(),
+              ),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.record_voice_over_outlined,
+          color: AppTheme.mint,
+          title: 'Voice coach',
+          subtitle: 'Offline TTS cues for recording events',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const VoiceCoachSettingsPage()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.public,
+          color: AppTheme.amber,
+          title: 'Community backend',
+          subtitle: 'Koyeb URL for share cards and challenges',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const CommunitySettingsPage()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.developer_mode,
+          color: AppTheme.violet,
+          title: 'External AI agent',
+          subtitle: 'Optional Termux, Telegram, ZeroClaw setup',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const ExternalAgentSetupPage()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.archive_outlined,
+          color: AppTheme.cyan,
+          title: 'Data export',
+          subtitle: 'ZIP with JSON, GPX, and summaries',
+          onTap: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const DataExportPage()));
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.webhook_outlined,
+          color: AppTheme.mint,
+          title: 'Webhook outbound',
+          subtitle: 'Send sanitized events to your own URL',
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const WebhookSettingsPage()),
+            );
+          },
+        ),
+        const SizedBox(height: 12),
+        _SettingsTile(
+          icon: Icons.map_outlined,
+          color: AppTheme.coral,
+          title: 'Map and offline',
+          subtitle: 'GPS offline behavior and map downloads',
+          onTap: () {
+            Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const MapSettingsPage()));
+          },
         ),
         const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.lock_outline),
-            title: const Text('Privacy defaults'),
-            subtitle: const Text('Route visibility, hidden radius, and sync'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const PrivacySettingsPage()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.flag_outlined),
-            title: const Text('Weekly goals'),
-            subtitle: const Text('Steps, active days, minutes, distance'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const GoalSettingsPage()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.event_note_outlined),
-            title: const Text('Training plan'),
-            subtitle: const Text('5K, 10K, and half-marathon templates'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const TrainingPlanPage()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.monitor_heart_outlined),
-            title: const Text('Profile and HR zones'),
-            subtitle: const Text('Max HR, resting HR, zone calculation'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const FitnessProfilePage()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.auto_awesome_outlined),
-            title: const Text('AI settings'),
-            subtitle: const Text('Provider, base URL, model, API key'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const AiSettingsPage()));
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.notifications_active_outlined),
-            title: const Text('Notifications'),
-            subtitle: const Text('Sync, recovery, PR, streak, training plan'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const NotificationSettingsPage(),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.record_voice_over_outlined),
-            title: const Text('Voice coach'),
-            subtitle: const Text('Offline TTS cues for recording events'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const VoiceCoachSettingsPage(),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.public),
-            title: const Text('Community backend'),
-            subtitle: const Text('Koyeb URL for share cards and challenges'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const CommunitySettingsPage(),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.developer_mode),
-            title: const Text('External AI agent'),
-            subtitle: const Text('Optional Termux, Telegram, ZeroClaw setup'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (_) => const ExternalAgentSetupPage(),
-                ),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.archive_outlined),
-            title: const Text('Data export'),
-            subtitle: const Text('ZIP with JSON, GPX, and summaries'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const DataExportPage()));
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.webhook_outlined),
-            title: const Text('Webhook outbound'),
-            subtitle: const Text('Send sanitized events to your own URL'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const WebhookSettingsPage()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: ListTile(
-            leading: const Icon(Icons.map_outlined),
-            title: const Text('Map and offline'),
-            subtitle: const Text('GPS offline behavior and map downloads'),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MapSettingsPage()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(height: 16),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Turso Credentials',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text(
-                  'Set your Turso database URL and auth token',
-                  style: TextStyle(color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: onSetupCredentials,
-                  icon: const Icon(Icons.settings),
-                  label: const Text('Setup Credentials'),
-                ),
-              ],
-            ),
+        PremiumCard(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Text(
+                'Turso Credentials',
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                'Set your Turso database URL and auth token',
+                style: TextStyle(color: AppTheme.mutedText(context)),
+              ),
+              const SizedBox(height: 14),
+              FilledButton.icon(
+                onPressed: onSetupCredentials,
+                icon: const Icon(Icons.settings),
+                label: const Text('Setup Credentials'),
+              ),
+            ],
           ),
         ),
       ],
+    );
+  }
+}
+
+class _SettingsTile extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SettingsTile({
+    required this.icon,
+    required this.color,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      padding: EdgeInsets.zero,
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            AccentIconBox(icon: icon, color: color, size: 38),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      color: AppTheme.text(context),
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: AppTheme.mutedText(context),
+                      height: 1.25,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Icon(Icons.chevron_right, color: AppTheme.mutedText(context)),
+          ],
+        ),
+      ),
     );
   }
 }

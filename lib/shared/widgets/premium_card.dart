@@ -20,25 +20,22 @@ class PremiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
+    final dark = AppTheme.isDark(context);
     final card = AnimatedContainer(
       duration: AppMotion.fast,
       curve: AppMotion.curve,
       padding: padding,
       decoration: BoxDecoration(
-        color: color ?? theme.colorScheme.surface,
+        color: color ?? AppTheme.card(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(
-          color: borderColor ?? (dark ? AppTheme.darkLine : AppTheme.line),
-        ),
+        border: Border.all(color: borderColor ?? AppTheme.border(context)),
         boxShadow: [
           BoxShadow(
             color: (dark ? Colors.black : AppTheme.ink).withValues(
-              alpha: dark ? 0.18 : 0.045,
+              alpha: dark ? 0.24 : 0.055,
             ),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
+            blurRadius: 22,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
@@ -46,10 +43,35 @@ class PremiumCard extends StatelessWidget {
     );
 
     if (onTap == null) return card;
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(8),
-      child: card,
+    return _PressableScale(onTap: onTap, child: card);
+  }
+}
+
+class _PressableScale extends StatefulWidget {
+  final Widget child;
+  final VoidCallback? onTap;
+
+  const _PressableScale({required this.child, required this.onTap});
+
+  @override
+  State<_PressableScale> createState() => _PressableScaleState();
+}
+
+class _PressableScaleState extends State<_PressableScale> {
+  bool _pressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedScale(
+      scale: _pressed ? 0.992 : 1,
+      duration: AppMotion.fast,
+      curve: AppMotion.curve,
+      child: InkWell(
+        onTap: widget.onTap,
+        onHighlightChanged: (value) => setState(() => _pressed = value),
+        borderRadius: BorderRadius.circular(8),
+        child: widget.child,
+      ),
     );
   }
 }
@@ -68,11 +90,12 @@ class AccentIconBox extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final background = AppTheme.subtleTint(context, color, 0.12);
     return Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: background,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Icon(icon, color: color, size: size * 0.56),

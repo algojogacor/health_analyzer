@@ -744,6 +744,7 @@ class _RecentActivityCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     final title = session.title ?? session.sportName;
     final distanceKm = session.distanceMeters / 1000;
     final duration =
@@ -761,14 +762,14 @@ class _RecentActivityCard extends StatelessWidget {
         children: [
           DecoratedBox(
             decoration: BoxDecoration(
-              color: AppTheme.ink,
+              color: AppTheme.inverse(context),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Padding(
               padding: const EdgeInsets.all(12),
               child: Icon(
                 session.requiresGps ? Icons.map : Icons.fitness_center,
-                color: Colors.white,
+                color: AppTheme.onInverse(context),
               ),
             ),
           ),
@@ -777,10 +778,10 @@ class _RecentActivityCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   'Recent activity',
                   style: TextStyle(
-                    color: AppTheme.muted,
+                    color: muted,
                     fontWeight: FontWeight.w800,
                     fontSize: 12,
                   ),
@@ -797,7 +798,7 @@ class _RecentActivityCard extends StatelessWidget {
                   '${session.sportName} / $date ${fmtTime(session.startedAt)} / ${fmtDuration(duration)}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                  style: TextStyle(color: muted, fontSize: 12),
                 ),
               ],
             ),
@@ -811,7 +812,7 @@ class _RecentActivityCard extends StatelessWidget {
                 style: const TextStyle(fontWeight: FontWeight.w900),
               ),
               const SizedBox(height: 6),
-              const Icon(Icons.chevron_right, color: AppTheme.muted),
+              Icon(Icons.chevron_right, color: muted),
             ],
           ),
         ],
@@ -828,6 +829,7 @@ class _InsightSnapshotCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    const cardColor = AppTheme.ink;
     final color = switch (summary.readinessScore) {
       >= 82 => AppTheme.mint,
       >= 64 => AppTheme.cyan,
@@ -836,8 +838,8 @@ class _InsightSnapshotCard extends StatelessWidget {
     };
 
     return PremiumCard(
-      color: AppTheme.ink,
-      borderColor: AppTheme.ink,
+      color: cardColor,
+      borderColor: cardColor,
       child: Row(
         children: [
           SizedBox(

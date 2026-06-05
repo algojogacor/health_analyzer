@@ -132,6 +132,10 @@ class _AiPageState extends ConsumerState<AiPage> {
         ),
         const SizedBox(height: 16),
         if (_loadingHistory) const LinearProgressIndicator(),
+        if (!_loadingHistory && _messages.isEmpty) ...[
+          AnimatedSection(index: 2, child: const _CoachWelcome()),
+          const SizedBox(height: 12),
+        ],
         ..._messages.asMap().entries.map(
           (entry) => AnimatedSection(
             index: entry.key + 2,
@@ -149,6 +153,7 @@ class _AiPageState extends ConsumerState<AiPage> {
                 maxLines: 4,
                 decoration: const InputDecoration(
                   labelText: 'Ask your health coach',
+                  hintText: 'Example: review my recovery today',
                   border: OutlineInputBorder(),
                 ),
               ),
@@ -349,7 +354,38 @@ class _CoachCard extends StatelessWidget {
             body,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(color: AppTheme.muted),
+            style: TextStyle(color: AppTheme.mutedText(context)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CoachWelcome extends StatelessWidget {
+  const _CoachWelcome();
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      color: AppTheme.softSurface(context),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AccentIconBox(
+            icon: Icons.psychology_outlined,
+            color: AppTheme.violet,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'Hi, I can explain your health summaries, workout trends, data gaps, and privacy status. I use local rules first, then cloud AI only when configured.',
+              style: TextStyle(
+                color: AppTheme.text(context),
+                height: 1.42,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -443,18 +479,16 @@ class _PromptChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
-    final labelColor = dark ? AppTheme.darkInk : AppTheme.ink;
-    final background = dark ? AppTheme.darkSurface : AppTheme.canvas;
-    final border = dark ? AppTheme.darkLine : AppTheme.line;
     return ActionChip(
       onPressed: onTap,
       avatar: const Icon(Icons.auto_awesome, size: 16),
       label: Text(label),
-      backgroundColor: background,
-      side: BorderSide(color: border),
-      labelStyle: TextStyle(color: labelColor, fontWeight: FontWeight.w800),
+      backgroundColor: AppTheme.softSurface(context),
+      side: BorderSide(color: AppTheme.border(context)),
+      labelStyle: TextStyle(
+        color: AppTheme.text(context),
+        fontWeight: FontWeight.w800,
+      ),
     );
   }
 }
@@ -467,21 +501,15 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
-    final theme = Theme.of(context);
-    final dark = theme.brightness == Brightness.dark;
+    final dark = AppTheme.isDark(context);
     final background =
         isUser
             ? AppTheme.cyan.withValues(alpha: dark ? 0.22 : 0.10)
-            : dark
-            ? AppTheme.darkSurface
-            : Colors.white;
+            : AppTheme.card(context);
     final border =
         isUser
             ? AppTheme.cyan.withValues(alpha: dark ? 0.44 : 0.24)
-            : dark
-            ? AppTheme.darkLine
-            : AppTheme.line;
-    final textColor = dark ? AppTheme.darkInk : AppTheme.ink;
+            : AppTheme.border(context);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -493,7 +521,10 @@ class _MessageBubble extends StatelessWidget {
           borderRadius: BorderRadius.circular(8),
           border: Border.all(color: border),
         ),
-        child: Text(message.content, style: TextStyle(color: textColor)),
+        child: Text(
+          message.content,
+          style: TextStyle(color: AppTheme.text(context), height: 1.38),
+        ),
       ),
     );
   }

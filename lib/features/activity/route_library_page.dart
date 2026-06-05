@@ -134,6 +134,7 @@ class _TargetRoutePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     if (route == null) {
       return const InfoPanel(
         icon: Icons.flag_outlined,
@@ -159,7 +160,7 @@ class _TargetRoutePanel extends StatelessWidget {
                   route!.name,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(color: AppTheme.muted),
+                  style: TextStyle(color: muted),
                 ),
               ],
             ),
@@ -178,6 +179,7 @@ class _RouteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: InkWell(
@@ -209,15 +211,12 @@ class _RouteTile extends StatelessWidget {
                       '${(route.distanceMeters / 1000).toStringAsFixed(2)} km / ${route.pointCount} pts / ${fmtTime(route.createdAt)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.muted,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: muted, fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppTheme.muted),
+              Icon(Icons.chevron_right, color: muted),
             ],
           ),
         ),

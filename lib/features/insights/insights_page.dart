@@ -151,6 +151,7 @@ class _TrainingLoadPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     final color = switch (load.label) {
       'Fresh' => AppTheme.mint,
       'Balanced' => AppTheme.cyan,
@@ -179,7 +180,7 @@ class _TrainingLoadPanel extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       '${load.label} / confidence ${load.confidence}',
-                      style: const TextStyle(color: AppTheme.muted),
+                      style: TextStyle(color: muted),
                     ),
                   ],
                 ),
@@ -200,7 +201,12 @@ class _TrainingLoadPanel extends StatelessWidget {
           SizedBox(
             height: 120,
             width: double.infinity,
-            child: CustomPaint(painter: _TrainingLoadPainter(load.days)),
+            child: CustomPaint(
+              painter: _TrainingLoadPainter(
+                load.days,
+                gridColor: AppTheme.border(context),
+              ),
+            ),
           ),
         ],
       ),
@@ -216,6 +222,7 @@ class _TrainingPlanTodayPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     final plan = snapshot.plan;
     return PremiumCard(
       child: Column(
@@ -241,7 +248,7 @@ class _TrainingPlanTodayPanel extends StatelessWidget {
                     ),
                     Text(
                       plan == null ? 'No active plan' : plan.title,
-                      style: const TextStyle(color: AppTheme.muted),
+                      style: TextStyle(color: muted),
                     ),
                   ],
                 ),
@@ -255,14 +262,14 @@ class _TrainingPlanTodayPanel extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           if (plan == null)
-            const Text(
+            Text(
               'Pick a deterministic template. Missing wearable sensors stay optional, so the plan still works with phone GPS only.',
-              style: TextStyle(color: AppTheme.muted, height: 1.35),
+              style: TextStyle(color: muted, height: 1.35),
             )
           else if (snapshot.today.isEmpty)
-            const Text(
+            Text(
               'No scheduled workout today. Use recovery, walking, or mobility if you want easy movement.',
-              style: TextStyle(color: AppTheme.muted, height: 1.35),
+              style: TextStyle(color: muted, height: 1.35),
             )
           else
             ...snapshot.today.map((workout) => _PlanWorkoutTile(workout)),
@@ -279,6 +286,7 @@ class _Vo2MaxPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     if (!summary.available || summary.latest == null) {
       return InfoPanel(
         icon: Icons.monitor_heart_outlined,
@@ -313,7 +321,7 @@ class _Vo2MaxPanel extends StatelessWidget {
                     ),
                     Text(
                       '${latest.confidence} confidence / ${summary.sensorStatus}',
-                      style: const TextStyle(color: AppTheme.muted),
+                      style: TextStyle(color: muted),
                     ),
                   ],
                 ),
@@ -328,10 +336,7 @@ class _Vo2MaxPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
-          Text(
-            summary.status,
-            style: const TextStyle(color: AppTheme.muted, height: 1.35),
-          ),
+          Text(summary.status, style: TextStyle(color: muted, height: 1.35)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -362,6 +367,7 @@ class _PlanWorkoutTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     final target =
         workout.targetDistanceMeters > 0
             ? '${(workout.targetDistanceMeters / 1000).toStringAsFixed(1)} km'
@@ -381,7 +387,7 @@ class _PlanWorkoutTile extends StatelessWidget {
               const SizedBox(height: 3),
               Text(
                 '$target / ${workout.intensity}',
-                style: const TextStyle(color: AppTheme.muted),
+                style: TextStyle(color: muted),
               ),
             ],
           ),
@@ -409,9 +415,9 @@ class _LoadStat extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.canvas,
+        color: AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(10),
@@ -420,8 +426,8 @@ class _LoadStat extends StatelessWidget {
           children: [
             Text(
               label,
-              style: const TextStyle(
-                color: AppTheme.muted,
+              style: TextStyle(
+                color: AppTheme.mutedText(context),
                 fontSize: 12,
                 fontWeight: FontWeight.w800,
               ),
@@ -440,8 +446,9 @@ class _LoadStat extends StatelessWidget {
 
 class _TrainingLoadPainter extends CustomPainter {
   final List<TrainingLoadDay> days;
+  final Color gridColor;
 
-  const _TrainingLoadPainter(this.days);
+  const _TrainingLoadPainter(this.days, {required this.gridColor});
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -451,7 +458,7 @@ class _TrainingLoadPainter extends CustomPainter {
         .fold<double>(1, (max, value) => value > max ? value : max);
     final gridPaint =
         Paint()
-          ..color = AppTheme.line
+          ..color = gridColor
           ..strokeWidth = 1;
     for (var i = 0; i <= 3; i++) {
       final y = size.height * i / 3;
@@ -493,7 +500,7 @@ class _TrainingLoadPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _TrainingLoadPainter oldDelegate) {
-    return oldDelegate.days != days;
+    return oldDelegate.days != days || oldDelegate.gridColor != gridColor;
   }
 }
 
@@ -543,6 +550,7 @@ class _RecordRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -560,7 +568,7 @@ class _RecordRow extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   record.sportKey.replaceAll('_', ' '),
-                  style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                  style: TextStyle(color: muted, fontSize: 12),
                 ),
               ],
             ),
@@ -858,7 +866,7 @@ class _WeeklyCalendar extends StatelessWidget {
                                   color:
                                       day.hasActivity
                                           ? AppTheme.cyan
-                                          : AppTheme.line,
+                                          : AppTheme.border(context),
                                   borderRadius: BorderRadius.circular(999),
                                 ),
                               ),
@@ -868,8 +876,8 @@ class _WeeklyCalendar extends StatelessWidget {
                         const SizedBox(height: 8),
                         Text(
                           labels[index.clamp(0, labels.length - 1)],
-                          style: const TextStyle(
-                            color: AppTheme.muted,
+                          style: TextStyle(
+                            color: AppTheme.mutedText(context),
                             fontWeight: FontWeight.w900,
                           ),
                         ),
@@ -941,8 +949,8 @@ class _GoalRow extends StatelessWidget {
               ),
               Text(
                 '${goal.valueLabel} / ${goal.targetLabel}',
-                style: const TextStyle(
-                  color: AppTheme.muted,
+                style: TextStyle(
+                  color: AppTheme.mutedText(context),
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
                 ),
@@ -954,7 +962,7 @@ class _GoalRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             child: Stack(
               children: [
-                Container(height: 9, color: AppTheme.line),
+                Container(height: 9, color: AppTheme.border(context)),
                 FractionallySizedBox(
                   widthFactor: goal.progress.clamp(0, 1).toDouble(),
                   child: Container(height: 9, color: AppTheme.cyan),
@@ -1036,7 +1044,10 @@ class _RecommendationTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   item.body,
-                  style: const TextStyle(color: AppTheme.muted, height: 1.35),
+                  style: TextStyle(
+                    color: AppTheme.mutedText(context),
+                    height: 1.35,
+                  ),
                 ),
               ],
             ),
@@ -1090,19 +1101,20 @@ class _AchievementTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = achievement.unlocked ? AppTheme.mint : AppTheme.muted;
+    final color =
+        achievement.unlocked ? AppTheme.mint : AppTheme.mutedText(context);
     return DecoratedBox(
       decoration: BoxDecoration(
         color:
             achievement.unlocked
                 ? AppTheme.mint.withValues(alpha: 0.10)
-                : AppTheme.canvas,
+                : AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(8),
         border: Border.all(
           color:
               achievement.unlocked
                   ? AppTheme.mint.withValues(alpha: 0.28)
-                  : AppTheme.line,
+                  : AppTheme.border(context),
         ),
       ),
       child: Padding(
@@ -1123,7 +1135,10 @@ class _AchievementTile extends StatelessWidget {
               achievement.body,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+              style: TextStyle(
+                color: AppTheme.mutedText(context),
+                fontSize: 12,
+              ),
             ),
           ],
         ),

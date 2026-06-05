@@ -65,16 +65,6 @@ class _SportPickerPageState extends State<SportPickerPage> {
             decoration: InputDecoration(
               prefixIcon: const Icon(Icons.search),
               labelText: 'Search sport mode',
-              filled: true,
-              fillColor: Colors.white,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.line),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(8),
-                borderSide: const BorderSide(color: AppTheme.line),
-              ),
             ),
             onChanged: (value) => setState(() => _query = value),
           ),
@@ -269,8 +259,11 @@ class _ModeTile extends StatelessWidget {
     return PremiumCard(
       onTap: () => onPick(mode),
       padding: const EdgeInsets.all(12),
-      color: selected ? AppTheme.cyan.withValues(alpha: 0.08) : Colors.white,
-      borderColor: selected ? AppTheme.cyan : AppTheme.line,
+      color:
+          selected
+              ? AppTheme.subtleTint(context, AppTheme.cyan, 0.12)
+              : AppTheme.card(context),
+      borderColor: selected ? AppTheme.cyan : AppTheme.border(context),
       child: Row(
         children: [
           AccentIconBox(
@@ -308,7 +301,7 @@ class _ModeTile extends StatelessWidget {
           IconButton(
             onPressed: () => onToggleFavorite(mode),
             icon: Icon(favorite ? Icons.star : Icons.star_border),
-            color: favorite ? AppTheme.amber : AppTheme.muted,
+            color: favorite ? AppTheme.amber : AppTheme.mutedText(context),
             tooltip: favorite ? 'Remove favorite' : 'Add favorite',
           ),
         ],
@@ -326,7 +319,7 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.canvas,
+        color: AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
@@ -334,7 +327,7 @@ class _Badge extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: AppTheme.muted,
+            color: AppTheme.mutedText(context),
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),

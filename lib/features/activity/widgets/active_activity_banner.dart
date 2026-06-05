@@ -22,6 +22,7 @@ class ActiveActivityBanner extends StatelessWidget {
     final paused = session.status == 'paused';
     final color = paused ? AppTheme.amber : AppTheme.mint;
     final statusLabel = paused ? 'Paused' : 'Recording';
+    final muted = AppTheme.mutedText(context);
 
     return PremiumCard(
       color: color.withValues(alpha: 0.08),
@@ -62,8 +63,8 @@ class ActiveActivityBanner extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '$statusLabel since ${fmtTime(session.startedAt)}',
-                      style: const TextStyle(
-                        color: AppTheme.muted,
+                      style: TextStyle(
+                        color: muted,
                         fontWeight: FontWeight.w800,
                       ),
                     ),

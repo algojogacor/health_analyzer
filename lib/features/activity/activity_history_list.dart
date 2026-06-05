@@ -101,6 +101,7 @@ class _ActivityHistoryTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final distanceKm = session.distanceMeters / 1000;
+    final muted = AppTheme.mutedText(context);
     final title = session.title ?? session.sportName;
     final duration = fmtDuration(
       session.movingSeconds > 0
@@ -144,7 +145,7 @@ class _ActivityHistoryTile extends StatelessWidget {
                     '${session.sportName} / ${fmtTime(session.startedAt)} / $duration',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                    style: TextStyle(color: muted, fontSize: 12),
                   ),
                 ],
               ),
@@ -158,7 +159,7 @@ class _ActivityHistoryTile extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
                 const SizedBox(height: 4),
-                const Icon(Icons.chevron_right, color: AppTheme.muted),
+                Icon(Icons.chevron_right, color: muted),
               ],
             ),
           ],

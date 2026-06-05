@@ -14,9 +14,9 @@ class RecorderStat extends StatelessWidget {
       margin: const EdgeInsets.only(right: 8),
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: AppTheme.canvas,
+        color: AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -25,8 +25,8 @@ class RecorderStat extends StatelessWidget {
             label,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.muted,
+            style: TextStyle(
+              color: AppTheme.mutedText(context),
               fontSize: 12,
               fontWeight: FontWeight.w700,
             ),

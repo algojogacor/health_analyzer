@@ -206,6 +206,7 @@ class _LatestShareCardState extends ConsumerState<_LatestShareCard> {
   @override
   Widget build(BuildContext context) {
     final activity = widget.activity;
+    final muted = AppTheme.mutedText(context);
     return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -219,7 +220,7 @@ class _LatestShareCardState extends ConsumerState<_LatestShareCard> {
           const SizedBox(height: 8),
           Text(
             '${activity.sportName} / ${(activity.distanceMeters / 1000).toStringAsFixed(2)} km / ${fmtDuration(activity.movingSeconds)}',
-            style: const TextStyle(color: AppTheme.muted),
+            style: TextStyle(color: muted),
           ),
           const SizedBox(height: 12),
           const InfoPanel(
@@ -281,6 +282,7 @@ class _ShareRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: PremiumCard(
@@ -306,10 +308,7 @@ class _ShareRow extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     row.status,
-                    style: const TextStyle(
-                      color: AppTheme.muted,
-                      fontWeight: FontWeight.w700,
-                    ),
+                    style: TextStyle(color: muted, fontWeight: FontWeight.w700),
                   ),
                 ],
               ),
@@ -329,6 +328,7 @@ class _ChallengePanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return PremiumCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -340,18 +340,18 @@ class _ChallengePanel extends StatelessWidget {
                 color: AppTheme.amber,
               ),
               const SizedBox(width: 12),
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
+                    const Text(
                       'Community-lite challenges',
                       style: TextStyle(fontWeight: FontWeight.w900),
                     ),
-                    SizedBox(height: 4),
+                    const SizedBox(height: 4),
                     Text(
                       'Drafts are local-only until the Koyeb community gateway is enabled.',
-                      style: TextStyle(color: AppTheme.muted, fontSize: 12),
+                      style: TextStyle(color: muted, fontSize: 12),
                     ),
                   ],
                 ),
@@ -387,13 +387,14 @@ class _ChallengeRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return Padding(
       padding: const EdgeInsets.only(top: 10),
       child: DecoratedBox(
         decoration: BoxDecoration(
-          color: AppTheme.canvas,
+          color: AppTheme.softSurface(context),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppTheme.line),
+          border: Border.all(color: AppTheme.border(context)),
         ),
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -410,15 +411,12 @@ class _ChallengeRow extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       '${row.metric} / target ${row.targetValue.toStringAsFixed(0)} / ${row.status}',
-                      style: const TextStyle(
-                        color: AppTheme.muted,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: muted, fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppTheme.muted),
+              Icon(Icons.chevron_right, color: muted),
             ],
           ),
         ),

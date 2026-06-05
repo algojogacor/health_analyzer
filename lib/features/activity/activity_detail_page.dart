@@ -678,7 +678,7 @@ class _ManualLapsPanel extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
+        side: BorderSide(color: AppTheme.border(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(16),
@@ -775,7 +775,7 @@ class _ActivityTagsPanel extends StatelessWidget {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppTheme.line),
+        side: BorderSide(color: AppTheme.border(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.all(14),
@@ -803,8 +803,8 @@ class _ActivityTagsPanel extends StatelessWidget {
                       .map(
                         (tag) => Chip(
                           label: Text(tag),
-                          side: const BorderSide(color: AppTheme.line),
-                          backgroundColor: AppTheme.canvas,
+                          side: BorderSide(color: AppTheme.border(context)),
+                          backgroundColor: AppTheme.softSurface(context),
                         ),
                       )
                       .toList(),
@@ -887,8 +887,8 @@ class _ZoneRow extends StatelessWidget {
               ),
               Text(
                 '${fmtDuration(zone.seconds)} / ${(zone.percent * 100).round()}%',
-                style: const TextStyle(
-                  color: AppTheme.muted,
+                style: TextStyle(
+                  color: AppTheme.mutedText(context),
                   fontWeight: FontWeight.w800,
                   fontSize: 12,
                 ),
@@ -900,7 +900,7 @@ class _ZoneRow extends StatelessWidget {
             borderRadius: BorderRadius.circular(999),
             child: Stack(
               children: [
-                Container(height: 9, color: AppTheme.line),
+                Container(height: 9, color: AppTheme.border(context)),
                 FractionallySizedBox(
                   widthFactor: zone.percent.clamp(0, 1).toDouble(),
                   child: Container(height: 9, color: color),
@@ -911,7 +911,7 @@ class _ZoneRow extends StatelessWidget {
           const SizedBox(height: 3),
           Text(
             '${zone.minBpm}-${zone.maxBpm} bpm',
-            style: const TextStyle(color: AppTheme.muted, fontSize: 11),
+            style: TextStyle(color: AppTheme.mutedText(context), fontSize: 11),
           ),
         ],
       ),

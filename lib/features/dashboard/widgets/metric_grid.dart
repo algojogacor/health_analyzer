@@ -259,6 +259,7 @@ class MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return PremiumCard(
       onTap: onTap,
       padding: const EdgeInsets.all(14),
@@ -281,8 +282,8 @@ class MetricCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             period,
-            style: const TextStyle(
-              color: AppTheme.muted,
+            style: TextStyle(
+              color: muted,
               fontWeight: FontWeight.w700,
               fontSize: 12,
             ),
@@ -294,7 +295,7 @@ class MetricCard extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: Theme.of(context).textTheme.headlineSmall?.copyWith(
               fontWeight: FontWeight.w900,
-              color: AppTheme.ink,
+              color: AppTheme.text(context),
             ),
           ),
           const SizedBox(height: 4),
@@ -302,11 +303,7 @@ class MetricCard extends StatelessWidget {
             detail,
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(
-              color: AppTheme.muted,
-              fontSize: 12,
-              height: 1.25,
-            ),
+            style: TextStyle(color: muted, fontSize: 12, height: 1.25),
           ),
           const SizedBox(height: 12),
           if (trendValues == null)
@@ -328,13 +325,14 @@ class _ProgressTrack extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final clamped = value.clamp(0, 1).toDouble();
+    final muted = AppTheme.mutedText(context);
     return Column(
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(999),
           child: Stack(
             children: [
-              Container(height: 8, color: AppTheme.line),
+              Container(height: 8, color: AppTheme.border(context)),
               FractionallySizedBox(
                 widthFactor: clamped,
                 child: Container(height: 8, color: color),
@@ -345,15 +343,12 @@ class _ProgressTrack extends StatelessWidget {
         const SizedBox(height: 5),
         Row(
           children: [
-            const Text(
-              '0%',
-              style: TextStyle(color: AppTheme.muted, fontSize: 11),
-            ),
+            Text('0%', style: TextStyle(color: muted, fontSize: 11)),
             const Spacer(),
             Text(
               '${(clamped * 100).round()}%',
-              style: const TextStyle(
-                color: AppTheme.muted,
+              style: TextStyle(
+                color: muted,
                 fontWeight: FontWeight.w800,
                 fontSize: 11,
               ),
@@ -373,6 +368,8 @@ class _MiniTrendBars extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
+    final emptyColor = AppTheme.border(context);
     final maxValue = values.fold<double>(
       0,
       (max, value) => value > max ? value : max,
@@ -406,7 +403,7 @@ class _MiniTrendBars extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color:
                                     value <= 0
-                                        ? AppTheme.line
+                                        ? emptyColor
                                         : color.withValues(alpha: 0.88),
                                 borderRadius: BorderRadius.circular(999),
                               ),
@@ -417,8 +414,8 @@ class _MiniTrendBars extends StatelessWidget {
                       const SizedBox(height: 3),
                       Text(
                         labels[index.clamp(0, labels.length - 1)],
-                        style: const TextStyle(
-                          color: AppTheme.muted,
+                        style: TextStyle(
+                          color: muted,
                           fontWeight: FontWeight.w700,
                           fontSize: 9,
                         ),

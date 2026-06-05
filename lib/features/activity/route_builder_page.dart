@@ -386,9 +386,9 @@ class _MetricPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: AppTheme.canvas,
+        color: AppTheme.softSurface(context),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: AppTheme.border(context)),
       ),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
@@ -414,14 +414,17 @@ class _BuilderHint extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface.withValues(alpha: 0.94),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppTheme.line),
+        border: Border.all(color: AppTheme.border(context)),
       ),
-      child: const Padding(
-        padding: EdgeInsets.all(12),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
         child: Text(
           'Tap the map to draw. Snap uses public OSRM when available; manual route stays local if snap fails.',
           textAlign: TextAlign.center,
-          style: TextStyle(color: AppTheme.muted, fontWeight: FontWeight.w700),
+          style: TextStyle(
+            color: AppTheme.mutedText(context),
+            fontWeight: FontWeight.w700,
+          ),
         ),
       ),
     );

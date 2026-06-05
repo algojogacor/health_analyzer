@@ -106,6 +106,7 @@ class _RouteToolsPanelState extends ConsumerState<_RouteToolsPanel> {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return PremiumCard(
       child: Row(
         children: [
@@ -117,15 +118,15 @@ class _RouteToolsPanelState extends ConsumerState<_RouteToolsPanel> {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              children: const [
-                Text(
+              children: [
+                const Text(
                   'Route tools',
                   style: TextStyle(fontWeight: FontWeight.w900),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 Text(
                   'Import GPX, review personal heatmap, and keep route data local by default.',
-                  style: TextStyle(color: AppTheme.muted),
+                  style: TextStyle(color: muted),
                 ),
               ],
             ),
@@ -269,6 +270,7 @@ class _SavedRouteTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final muted = AppTheme.mutedText(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: InkWell(
@@ -300,15 +302,12 @@ class _SavedRouteTile extends StatelessWidget {
                       '${(route.distanceMeters / 1000).toStringAsFixed(2)} km / ${route.pointCount} pts / ${fmtTime(route.createdAt)}',
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        color: AppTheme.muted,
-                        fontSize: 12,
-                      ),
+                      style: TextStyle(color: muted, fontSize: 12),
                     ),
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: AppTheme.muted),
+              Icon(Icons.chevron_right, color: muted),
             ],
           ),
         ),

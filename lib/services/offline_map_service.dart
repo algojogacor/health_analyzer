@@ -1,11 +1,13 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_map/flutter_map.dart';
-import 'package:flutter_map_tile_caching/flutter_map_tile_caching.dart';
 import 'package:latlong2/latlong.dart';
-import 'package:uuid/uuid.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
 
 import '../database/database.dart';
 
@@ -25,46 +27,207 @@ class OfflineMapDownloadResult {
   });
 }
 
-class OfflineMapService {
-  static const streetStoreName = 'health_analyzer_street';
-  static const satelliteStoreName = 'health_analyzer_satellite';
-  static const streetUrl = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
-  static const satelliteUrl =
-      'https://server.arcgisonline.com/ArcGIS/rest/services/'
-      'World_Imagery/MapServer/tile/{z}/{y}/{x}';
+class OfflineMapCatalogPack {
+  final String id;
+  final String name;
+  final String layer;
+  final String url;
+  final String source;
+  final String license;
+  final String attribution;
+  final int sizeBytes;
+  final int minZoom;
+  final int maxZoom;
+  final LatLngBounds bounds;
 
-  final AppDatabase db;
-  final _uuid = const Uuid();
+  const OfflineMapCatalogPack({
+    required this.id,
+    required this.name,
+    required this.layer,
+    required this.url,
+    required this.source,
+    required this.license,
+    required this.attribution,
+    required this.sizeBytes,
+    required this.minZoom,
+    required this.maxZoom,
+    required this.bounds,
+  });
 
-  OfflineMapService(this.db);
-
-  static Future<void> initialise() async {
-    try {
-      await FMTCObjectBoxBackend().initialise();
-      for (final storeName in [streetStoreName, satelliteStoreName]) {
-        final store = FMTCStore(storeName);
-        if (!await store.manage.ready) {
-          await store.manage.create();
-        }
-      }
-    } on RootUnavailable {
-      rethrow;
-    } catch (_) {
-      // FMTC throws when already initialised; callers can still use it.
-    }
-  }
-
-  static FMTCTileProvider tileProviderForStyle(String style) {
-    final storeName =
-        style == 'satellite' ? satelliteStoreName : streetStoreName;
-    return FMTCTileProvider(
-      stores: {storeName: BrowseStoreStrategy.readUpdateCreate},
-      loadingStrategy: BrowseLoadingStrategy.cacheFirst,
+  factory OfflineMapCatalogPack.fromJson(Map<String, dynamic> json) {
+    final bounds = json['bounds'] as Map<String, dynamic>? ?? const {};
+    return OfflineMapCatalogPack(
+      id: json['id']?.toString() ?? '',
+      name: json['name']?.toString() ?? 'Offline map pack',
+      layer: json['layer']?.toString() ?? 'satellite',
+      url: json['url']?.toString() ?? '',
+      source: json['source']?.toString() ?? 'unknown',
+      license: json['license']?.toString() ?? 'review required',
+      attribution: json['attribution']?.toString() ?? '',
+      sizeBytes: (json['size_bytes'] as num?)?.round() ?? 0,
+      minZoom: (json['min_zoom'] as num?)?.round() ?? 0,
+      maxZoom: (json['max_zoom'] as num?)?.round() ?? 0,
+      bounds: LatLngBounds(
+        LatLng(
+          (bounds['south'] as num?)?.toDouble() ?? 0,
+          (bounds['west'] as num?)?.toDouble() ?? 0,
+        ),
+        LatLng(
+          (bounds['north'] as num?)?.toDouble() ?? 0,
+          (bounds['east'] as num?)?.toDouble() ?? 0,
+        ),
+      ),
     );
   }
 
+  bool get isUsable =>
+      id.isNotEmpty && url.startsWith('https://') && minZoom <= maxZoom;
+}
+
+class OfflinePmTilesPack {
+  final String path;
+  final String name;
+  final String style;
+  final String attribution;
+  final int minZoom;
+  final int maxZoom;
+
+  const OfflinePmTilesPack({
+    required this.path,
+    required this.name,
+    required this.style,
+    required this.attribution,
+    required this.minZoom,
+    required this.maxZoom,
+  });
+}
+
+class OfflineMapService {
+  final AppDatabase db;
+  final Dio dio;
+
+  OfflineMapService(this.db, {Dio? dio})
+    : dio =
+          dio ??
+          Dio(
+            BaseOptions(
+              connectTimeout: const Duration(seconds: 15),
+              receiveTimeout: const Duration(seconds: 30),
+            ),
+          );
+
+  static Future<void> initialise() async {}
+
   Future<List<OfflineMapRegion>> regions() {
     return db.select(db.offlineMapRegions).get();
+  }
+
+  Future<List<OfflineMapCatalogPack>> fetchCatalog(String baseUrl) async {
+    if (baseUrl.trim().isEmpty) return const [];
+    final response = await dio.get<Map<String, dynamic>>(
+      '${baseUrl.replaceAll(RegExp(r'/+$'), '')}/maps/catalog',
+    );
+    final packs = response.data?['packs'];
+    if (packs is! List) return const [];
+    return packs
+        .whereType<Map<String, dynamic>>()
+        .map(OfflineMapCatalogPack.fromJson)
+        .where((pack) => pack.isUsable)
+        .toList(growable: false);
+  }
+
+  Future<void> saveCatalogPackRequest(OfflineMapCatalogPack pack) async {
+    await db
+        .into(db.offlineMapRegions)
+        .insert(
+          OfflineMapRegionsCompanion.insert(
+            name: pack.name,
+            bounds: jsonEncode({
+              'north': pack.bounds.north,
+              'south': pack.bounds.south,
+              'east': pack.bounds.east,
+              'west': pack.bounds.west,
+              'source': pack.source,
+              'license': pack.license,
+              'attribution': pack.attribution,
+              'url': pack.url,
+              'pack_id': pack.id,
+            }),
+            minZoom: pack.minZoom,
+            maxZoom: pack.maxZoom,
+            style: pack.layer,
+            storageBytes: Value(pack.sizeBytes),
+            status: const Value('catalog_pmtiles'),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+  }
+
+  Future<OfflineMapRegion> downloadCatalogPack(
+    OfflineMapCatalogPack pack, {
+    void Function(int received, int total)? onProgress,
+  }) async {
+    if (!pack.isUsable) {
+      throw StateError(
+        'PMTiles pack is missing a valid HTTPS URL or zoom range',
+      );
+    }
+    final file = await _packFile(pack);
+    final rowId = await db
+        .into(db.offlineMapRegions)
+        .insert(
+          OfflineMapRegionsCompanion.insert(
+            name: pack.name,
+            bounds: jsonEncode({
+              'north': pack.bounds.north,
+              'south': pack.bounds.south,
+              'east': pack.bounds.east,
+              'west': pack.bounds.west,
+              'source': pack.source,
+              'license': pack.license,
+              'attribution': pack.attribution,
+              'url': pack.url,
+              'pack_id': pack.id,
+              'local_path': file.path,
+            }),
+            minZoom: pack.minZoom,
+            maxZoom: pack.maxZoom,
+            style: pack.layer,
+            storageBytes: Value(pack.sizeBytes),
+            status: const Value('downloading_pmtiles'),
+            updatedAt: Value(DateTime.now()),
+          ),
+        );
+
+    try {
+      await dio.download(
+        pack.url,
+        file.path,
+        deleteOnError: true,
+        onReceiveProgress: onProgress,
+      );
+      final actualBytes = await file.length();
+      await (db.update(db.offlineMapRegions)
+        ..where((table) => table.id.equals(rowId))).write(
+        OfflineMapRegionsCompanion(
+          storageBytes: Value(actualBytes),
+          status: const Value('ready_pmtiles'),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+    } catch (error) {
+      await (db.update(db.offlineMapRegions)
+        ..where((table) => table.id.equals(rowId))).write(
+        OfflineMapRegionsCompanion(
+          status: const Value('failed_pmtiles'),
+          updatedAt: Value(DateTime.now()),
+        ),
+      );
+      rethrow;
+    }
+
+    return (db.select(db.offlineMapRegions)
+      ..where((table) => table.id.equals(rowId))).getSingle();
   }
 
   Future<OfflineMapDownloadResult> downloadCurrentArea({
@@ -72,7 +235,6 @@ class OfflineMapService {
     required double radiusKm,
     required OfflineMapLayerChoice layerChoice,
   }) async {
-    await initialise();
     final bounds = _boundsForRadius(center, radiusKm);
     var streetReady = false;
     var satelliteReady = false;
@@ -80,11 +242,9 @@ class OfflineMapService {
 
     if (layerChoice == OfflineMapLayerChoice.street ||
         layerChoice == OfflineMapLayerChoice.both) {
-      streetReady = await _downloadLayer(
+      streetReady = await _registerPlannedLayer(
         name: 'Street ${radiusKm.toStringAsFixed(0)} km',
         style: 'street',
-        storeName: streetStoreName,
-        urlTemplate: streetUrl,
         bounds: bounds,
         minZoom: 12,
         maxZoom: 16,
@@ -93,16 +253,14 @@ class OfflineMapService {
 
     if (layerChoice == OfflineMapLayerChoice.satellite ||
         layerChoice == OfflineMapLayerChoice.both) {
-      satelliteReady = await _downloadLayer(
+      satelliteReady = await _registerPlannedLayer(
         name: 'Satellite ${radiusKm.toStringAsFixed(0)} km',
         style: 'satellite',
-        storeName: satelliteStoreName,
-        urlTemplate: satelliteUrl,
         bounds: bounds,
         minZoom: 12,
         maxZoom: 17,
       );
-      satelliteFailed = !satelliteReady;
+      satelliteFailed = true;
     }
 
     return OfflineMapDownloadResult(
@@ -111,12 +269,19 @@ class OfflineMapService {
       satelliteFailed: satelliteFailed,
       message:
           satelliteFailed
-              ? 'Satellite tiles unavailable. Street map can still be downloaded.'
-              : 'Offline region download finished.',
+              ? 'Satellite offline packs are waiting for PMTiles support. Street online maps still work.'
+              : 'Offline region metadata saved. PMTiles download will be enabled in the next map phase.',
     );
   }
 
   Future<void> deleteRegion(OfflineMapRegion region) async {
+    final localPath = localPathFor(region);
+    if (localPath != null) {
+      final file = File(localPath);
+      if (await file.exists()) {
+        await file.delete();
+      }
+    }
     await (db.update(db.offlineMapRegions)
       ..where((table) => table.id.equals(region.id))).write(
       OfflineMapRegionsCompanion(
@@ -126,16 +291,59 @@ class OfflineMapService {
     );
   }
 
-  Future<bool> _downloadLayer({
+  static OfflinePmTilesPack? selectReadyPmTilesPack({
+    required LatLng center,
+    required String style,
+    required List<OfflineMapRegion> regions,
+  }) {
+    for (final region in regions) {
+      if (region.status != 'ready_pmtiles') continue;
+      if (region.style != style) continue;
+      final metadata = _decodeMetadata(region.bounds);
+      final path = metadata['local_path']?.toString();
+      if (path == null || path.trim().isEmpty) continue;
+      if (!File(path).existsSync()) continue;
+      final north = _asDouble(metadata['north']);
+      final south = _asDouble(metadata['south']);
+      final east = _asDouble(metadata['east']);
+      final west = _asDouble(metadata['west']);
+      if (north == null || south == null || east == null || west == null) {
+        continue;
+      }
+      final inside =
+          center.latitude >= south &&
+          center.latitude <= north &&
+          center.longitude >= west &&
+          center.longitude <= east;
+      if (!inside) continue;
+      return OfflinePmTilesPack(
+        path: path,
+        name: region.name,
+        style: region.style,
+        attribution:
+            metadata['attribution']?.toString().trim().isEmpty == false
+                ? metadata['attribution'].toString()
+                : 'Offline PMTiles',
+        minZoom: region.minZoom,
+        maxZoom: region.maxZoom,
+      );
+    }
+    return null;
+  }
+
+  static String? localPathFor(OfflineMapRegion region) {
+    final metadata = _decodeMetadata(region.bounds);
+    final path = metadata['local_path']?.toString();
+    return path == null || path.trim().isEmpty ? null : path;
+  }
+
+  Future<bool> _registerPlannedLayer({
     required String name,
     required String style,
-    required String storeName,
-    required String urlTemplate,
     required LatLngBounds bounds,
     required int minZoom,
     required int maxZoom,
   }) async {
-    final localName = '$style-${_uuid.v4()}';
     await db
         .into(db.offlineMapRegions)
         .insert(
@@ -150,66 +358,11 @@ class OfflineMapService {
             minZoom: minZoom,
             maxZoom: maxZoom,
             style: style,
-            status: const Value('downloading'),
+            status: const Value('planned_pmtiles'),
+            updatedAt: Value(DateTime.now()),
           ),
         );
-
-    try {
-      final store = FMTCStore(storeName);
-      if (!await store.manage.ready) await store.manage.create();
-      final region = RectangleRegion(bounds).toDownloadable(
-        minZoom: minZoom,
-        maxZoom: maxZoom,
-        options: TileLayer(urlTemplate: urlTemplate),
-      );
-      final streams = store.download.startForeground(
-        region: region,
-        parallelThreads: 2,
-        maxBufferLength: 60,
-        skipExistingTiles: true,
-        skipSeaTiles: false,
-        rateLimit: 2,
-        instanceId: localName,
-      );
-      DownloadProgress? last;
-      await for (final progress in streams.downloadProgress) {
-        last = progress;
-      }
-      final failed = last?.failedTilesCount ?? 0;
-      final stats = await store.stats.all;
-      await _updateLatestRegion(
-        style: style,
-        status: failed > 0 ? 'failed' : 'ready',
-        storageBytes: (stats.size * 1024).round(),
-      );
-      return failed == 0;
-    } catch (_) {
-      await _updateLatestRegion(style: style, status: 'failed');
-      return false;
-    }
-  }
-
-  Future<void> _updateLatestRegion({
-    required String style,
-    required String status,
-    int? storageBytes,
-  }) async {
-    final rows =
-        await (db.select(db.offlineMapRegions)
-              ..where((table) => table.style.equals(style))
-              ..orderBy([(table) => OrderingTerm.desc(table.createdAt)])
-              ..limit(1))
-            .get();
-    if (rows.isEmpty) return;
-    await (db.update(db.offlineMapRegions)
-      ..where((table) => table.id.equals(rows.first.id))).write(
-      OfflineMapRegionsCompanion(
-        status: Value(status),
-        storageBytes:
-            storageBytes == null ? const Value.absent() : Value(storageBytes),
-        updatedAt: Value(DateTime.now()),
-      ),
-    );
+    return false;
   }
 
   LatLngBounds _boundsForRadius(LatLng center, double radiusKm) {
@@ -225,5 +378,38 @@ class OfflineMapService {
       LatLng(center.latitude - latDelta, center.longitude - lonDelta),
       LatLng(center.latitude + latDelta, center.longitude + lonDelta),
     );
+  }
+
+  Future<File> _packFile(OfflineMapCatalogPack pack) async {
+    final dir = await getApplicationSupportDirectory();
+    final mapDir = Directory(p.join(dir.path, 'offline_maps'));
+    if (!await mapDir.exists()) {
+      await mapDir.create(recursive: true);
+    }
+    return File(p.join(mapDir.path, '${_safeFileName(pack.id)}.pmtiles'));
+  }
+
+  String _safeFileName(String raw) {
+    final cleaned = raw
+        .trim()
+        .replaceAll(RegExp(r'[^A-Za-z0-9._-]+'), '-')
+        .replaceAll(RegExp(r'-+'), '-');
+    return cleaned.isEmpty ? 'offline-map-pack' : cleaned;
+  }
+
+  static Map<String, dynamic> _decodeMetadata(String raw) {
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is Map<String, dynamic>) return decoded;
+      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+    } catch (_) {
+      return const {};
+    }
+    return const {};
+  }
+
+  static double? _asDouble(Object? value) {
+    if (value is num) return value.toDouble();
+    return double.tryParse(value?.toString() ?? '');
   }
 }

@@ -19,9 +19,13 @@ class InfoPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final titleColor = dark ? AppTheme.darkInk : AppTheme.ink;
+    final bodyColor = dark ? AppTheme.darkMuted : AppTheme.muted;
     return PremiumCard(
-      color: AppTheme.canvas,
-      borderColor: AppTheme.line,
+      color: dark ? AppTheme.darkSurface : AppTheme.canvas,
+      borderColor: dark ? AppTheme.darkLine : AppTheme.line,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -33,13 +37,13 @@ class InfoPanel extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(fontWeight: FontWeight.w900),
+                  style: TextStyle(
+                    color: titleColor,
+                    fontWeight: FontWeight.w900,
+                  ),
                 ),
                 const SizedBox(height: 6),
-                Text(
-                  body,
-                  style: const TextStyle(color: AppTheme.muted, height: 1.35),
-                ),
+                Text(body, style: TextStyle(color: bodyColor, height: 1.35)),
                 if (action != null) ...[const SizedBox(height: 10), action!],
               ],
             ),

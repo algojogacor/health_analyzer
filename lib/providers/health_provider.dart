@@ -1,20 +1,48 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:health/health.dart';
 import '../database/database.dart';
+import '../services/ai_conversation_service.dart';
 import '../services/ai_agent_service.dart';
 import '../services/ai_tier_service.dart';
 import '../services/activity_ai_summary_service.dart';
 import '../services/activity_analysis_service.dart';
+import '../services/activity_heatmap_service.dart';
 import '../services/activity_recorder_service.dart';
 import '../services/ai_tool_executor_service.dart';
+import '../services/android_widget_service.dart';
+import '../services/cadence_analysis_service.dart';
 import '../services/community_service.dart';
-import '../services/deepseek_service.dart';
+import '../services/data_export_service.dart';
+import '../services/fitness_profile_service.dart';
+import '../services/gpx_service.dart';
 import '../services/health_service.dart';
+import '../services/heart_rate_zone_service.dart';
+import '../services/lap_analysis_service.dart';
+import '../services/llm_service.dart';
 import '../services/offline_map_service.dart';
+import '../services/local_notification_service.dart';
+import '../services/map_tile_provider_service.dart';
+import '../services/notification_settings_service.dart';
+import '../services/onboarding_service.dart';
+import '../services/personal_record_service.dart';
+import '../services/proactive_insight_service.dart';
+import '../services/route_builder_service.dart';
+import '../services/route_target_service.dart';
 import '../services/saved_route_service.dart';
+import '../services/share_card_service.dart';
+import '../services/theme_settings_service.dart';
+import '../services/training_goal_service.dart';
 import '../services/training_insights_service.dart';
+import '../services/training_plan_service.dart';
 import '../services/turso_service.dart';
+import '../services/vo2max_service.dart';
+import '../services/voice_coach_service.dart';
+import '../services/voice_coach_settings_service.dart';
+import '../services/webhook_service.dart';
+import '../services/webhook_settings_service.dart';
+import '../services/workout_narrative_service.dart';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
   return const FlutterSecureStorage(
@@ -28,6 +56,26 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   final db = AppDatabase();
   ref.onDispose(() => db.close());
   return db;
+});
+
+final themeSettingsServiceProvider = Provider<ThemeSettingsService>((ref) {
+  return ThemeSettingsService(storage: ref.read(secureStorageProvider));
+});
+
+final themeModeProvider = FutureProvider<ThemeMode>((ref) {
+  return ref.read(themeSettingsServiceProvider).loadThemeMode();
+});
+
+final onboardingServiceProvider = Provider<OnboardingService>((ref) {
+  return OnboardingService(storage: ref.read(secureStorageProvider));
+});
+
+final onboardingCompletedProvider = FutureProvider<bool>((ref) {
+  return ref.read(onboardingServiceProvider).isCompleted();
+});
+
+final androidWidgetServiceProvider = Provider<AndroidWidgetService>((ref) {
+  return const AndroidWidgetService();
 });
 
 // ─── Health Service ───
@@ -52,6 +100,52 @@ final activityRecorderSnapshotProvider =
       service.loadActiveSession();
       return service.snapshots;
     });
+
+final localNotificationServiceProvider = Provider<LocalNotificationService>((
+  ref,
+) {
+  return LocalNotificationService();
+});
+
+final notificationSettingsServiceProvider =
+    Provider<NotificationSettingsService>((ref) {
+      return NotificationSettingsService(
+        storage: ref.read(secureStorageProvider),
+      );
+    });
+
+final notificationSettingsProvider = FutureProvider<HealthNotificationSettings>(
+  (ref) {
+    return ref.read(notificationSettingsServiceProvider).loadSettings();
+  },
+);
+
+final voiceCoachSettingsServiceProvider = Provider<VoiceCoachSettingsService>((
+  ref,
+) {
+  return VoiceCoachSettingsService(storage: ref.read(secureStorageProvider));
+});
+
+final voiceCoachSettingsProvider = FutureProvider<VoiceCoachSettings>((ref) {
+  return ref.read(voiceCoachSettingsServiceProvider).loadSettings();
+});
+
+final voiceCoachServiceProvider = Provider<VoiceCoachService>((ref) {
+  return VoiceCoachService(
+    settingsService: ref.read(voiceCoachSettingsServiceProvider),
+  );
+});
+
+final proactiveInsightServiceProvider = Provider<ProactiveInsightService>((
+  ref,
+) {
+  return ProactiveInsightService(
+    db: ref.read(databaseProvider),
+    storage: ref.read(secureStorageProvider),
+    notifications: ref.read(localNotificationServiceProvider),
+    settingsService: ref.read(notificationSettingsServiceProvider),
+  );
+});
 
 /// Provider: status izin Health Connect
 final healthPermissionProvider = FutureProvider<bool>((ref) async {
@@ -200,11 +294,33 @@ final coverageSummaryProvider = FutureProvider<HealthCoverageSummary>((
     return value;
   }
 
-  final wearableRows = records.where(
-    (r) =>
-        (r.sourceName ?? '').contains('xiaomi') ||
-        (r.sourceName ?? '').contains('wearable'),
-  );
+  bool isWearableSource(HealthRecord record) {
+    final source =
+        '${record.sourceName ?? ''} ${record.sourceId ?? ''}'.toLowerCase();
+    if (source.trim().isEmpty) return false;
+    const watchTerms = [
+      'xiaomi',
+      'mi fitness',
+      'com.xiaomi.wearable',
+      'wearable',
+      'watch',
+      'band',
+      'garmin',
+      'samsung health',
+      'fitbit',
+      'huawei',
+      'amazfit',
+      'zepp',
+      'polar',
+      'suunto',
+      'coros',
+      'whoop',
+      'oura',
+    ];
+    return watchTerms.any(source.contains);
+  }
+
+  final wearableRows = records.where(isWearableSource);
   final wearableStepRows = wearableRows.where((r) => r.dataType == 'STEPS');
   final phoneStepRows = byType(
     'STEPS',
@@ -238,7 +354,7 @@ final coverageSummaryProvider = FutureProvider<HealthCoverageSummary>((
   }
   final latestWearable = latest(wearableRows);
   if (latestWearable == null) {
-    notes.add('No Xiaomi wearable records found today.');
+    notes.add('No supported wearable records found today.');
   } else if (now.difference(latestWearable).inHours >= 3) {
     notes.add('Wearable data is more than 3 hours old.');
   }
@@ -281,7 +397,7 @@ final healthMetricRecordsProvider =
         now.month,
         now.day,
       ).add(const Duration(days: 1));
-      final start = end.subtract(const Duration(days: 7));
+      final start = end.subtract(const Duration(days: 30));
       final records = await db.getRecordsBetween(start, end);
       return records.where((record) => types.contains(record.dataType)).toList()
         ..sort((a, b) => b.dateFrom.compareTo(a.dateFrom));
@@ -387,8 +503,28 @@ final dashboardMetricTrendsProvider = FutureProvider<DashboardMetricTrends>((
     if (index < 0 || index >= 7) continue;
     switch (record.dataType) {
       case 'STEPS':
-        final source = (record.sourceName ?? '').toLowerCase();
-        if (source.contains('xiaomi') || source.contains('wearable')) {
+        final source =
+            '${record.sourceName ?? ''} ${record.sourceId ?? ''}'.toLowerCase();
+        final fromWearable = [
+          'xiaomi',
+          'mi fitness',
+          'com.xiaomi.wearable',
+          'wearable',
+          'watch',
+          'band',
+          'garmin',
+          'samsung health',
+          'fitbit',
+          'huawei',
+          'amazfit',
+          'zepp',
+          'polar',
+          'suunto',
+          'coros',
+          'whoop',
+          'oura',
+        ].any(source.contains);
+        if (fromWearable) {
           steps[index] += record.value;
         } else if (steps[index] == 0) {
           steps[index] += record.value;
@@ -436,6 +572,20 @@ final activityAnalysisServiceProvider = Provider<ActivityAnalysisService>((
   return ActivityAnalysisService();
 });
 
+final activityHeatmapServiceProvider = Provider<ActivityHeatmapService>((ref) {
+  return ActivityHeatmapService(ref.read(databaseProvider));
+});
+
+final activityHeatmapProvider = FutureProvider<ActivityHeatmapSummary>((ref) {
+  return ref.read(activityHeatmapServiceProvider).build();
+});
+
+final workoutNarrativeServiceProvider = Provider<WorkoutNarrativeService>((
+  ref,
+) {
+  return const WorkoutNarrativeService();
+});
+
 final activityAnalysisProvider =
     FutureProvider.family<ActivityAnalysis?, String>((
       ref,
@@ -451,30 +601,96 @@ final activityAnalysisProvider =
 final activityAiSummaryServiceProvider = Provider<ActivityAiSummaryService>((
   ref,
 ) {
-  return ActivityAiSummaryService(ref.read(activityAnalysisServiceProvider));
+  return ActivityAiSummaryService(
+    ref.read(activityAnalysisServiceProvider),
+    ref.read(workoutNarrativeServiceProvider),
+  );
 });
 
 final savedRouteServiceProvider = Provider<SavedRouteService>((ref) {
   return SavedRouteService(ref.read(databaseProvider));
 });
 
+final gpxServiceProvider = Provider<GpxService>((ref) {
+  return GpxService(ref.read(databaseProvider));
+});
+
+final activityShareCardServiceProvider = Provider<ActivityShareCardService>((
+  ref,
+) {
+  return const ActivityShareCardService();
+});
+
+final dataExportServiceProvider = Provider<DataExportService>((ref) {
+  return DataExportService(
+    ref.read(databaseProvider),
+    gpxService: ref.read(gpxServiceProvider),
+  );
+});
+
+final webhookSettingsServiceProvider = Provider<WebhookSettingsService>((ref) {
+  return WebhookSettingsService(storage: ref.read(secureStorageProvider));
+});
+
+final webhookSettingsProvider = FutureProvider<WebhookSettings>((ref) {
+  return ref.read(webhookSettingsServiceProvider).loadSettings();
+});
+
+final webhookServiceProvider = Provider<WebhookService>((ref) {
+  return WebhookService(
+    settingsService: ref.read(webhookSettingsServiceProvider),
+  );
+});
+
 final savedRoutesProvider = FutureProvider<List<SavedRoute>>((ref) {
   return ref.read(databaseProvider).getRecentSavedRoutes();
 });
 
-final deepSeekServiceProvider = Provider<DeepSeekService>((ref) {
-  return DeepSeekService(storage: ref.read(secureStorageProvider));
+final savedRouteProvider = FutureProvider.family<SavedRoute?, String>((
+  ref,
+  localId,
+) {
+  return ref.read(databaseProvider).getSavedRoute(localId);
 });
 
-final deepSeekSettingsProvider = FutureProvider<DeepSeekSettings>((ref) {
-  return ref.read(deepSeekServiceProvider).loadSettings();
+final routeBuilderServiceProvider = Provider<RouteBuilderService>((ref) {
+  return RouteBuilderService();
+});
+
+final routeTargetServiceProvider = Provider<RouteTargetService>((ref) {
+  return RouteTargetService(
+    db: ref.read(databaseProvider),
+    storage: ref.read(secureStorageProvider),
+  );
+});
+
+final routeTargetProvider = FutureProvider<SavedRoute?>((ref) {
+  return ref.read(routeTargetServiceProvider).loadTarget();
+});
+
+final llmServiceProvider = Provider<LlmService>((ref) {
+  return LlmService(storage: ref.read(secureStorageProvider));
+});
+
+final llmSettingsProvider = FutureProvider<LlmSettings>((ref) {
+  return ref.read(llmServiceProvider).loadSettings();
 });
 
 final aiToolExecutorProvider = Provider<AiToolExecutorService>((ref) {
   return AiToolExecutorService(
     ref.read(databaseProvider),
     ref.read(activityAnalysisServiceProvider),
+    ref.read(trainingGoalServiceProvider),
+    ref.read(trainingInsightsServiceProvider),
+    ref.read(trainingPlanServiceProvider),
+    ref.read(fitnessProfileServiceProvider),
+    ref.read(heartRateZoneServiceProvider),
+    ref.read(cadenceAnalysisServiceProvider),
   );
+});
+
+final aiConversationServiceProvider = Provider<AiConversationService>((ref) {
+  return AiConversationService(ref.read(databaseProvider));
 });
 
 final aiTierPolicyProvider = Provider<AiTierPolicy>((ref) {
@@ -494,7 +710,7 @@ final aiUsageTrackerProvider = Provider<AiUsageTracker>((ref) {
 
 final aiAgentServiceProvider = Provider<AiAgentService>((ref) {
   return AiAgentService(
-    deepSeekService: ref.read(deepSeekServiceProvider),
+    llmService: ref.read(llmServiceProvider),
     tools: ref.read(aiToolExecutorProvider),
     tierPolicy: ref.read(aiTierPolicyProvider),
     usageTracker: ref.read(aiUsageTrackerProvider),
@@ -522,9 +738,22 @@ final offlineMapServiceProvider = Provider<OfflineMapService>((ref) {
   return OfflineMapService(ref.read(databaseProvider));
 });
 
+final mapTileProviderServiceProvider = Provider<MapTileProviderService>((ref) {
+  return MapTileProviderService(storage: ref.read(secureStorageProvider));
+});
+
+final mapTileSettingsProvider = FutureProvider<MapTileSettings>((ref) {
+  return ref.read(mapTileProviderServiceProvider).loadSettings();
+});
+
 final offlineMapRegionsProvider = FutureProvider<List<OfflineMapRegion>>((ref) {
   return ref.read(offlineMapServiceProvider).regions();
 });
+
+final offlineMapCatalogProvider =
+    FutureProvider.family<List<OfflineMapCatalogPack>, String>((ref, baseUrl) {
+      return ref.read(offlineMapServiceProvider).fetchCatalog(baseUrl);
+    });
 
 final challengeInvitesProvider = FutureProvider<List<ChallengeInvite>>((ref) {
   return ref.read(databaseProvider).getRecentChallengeInvites();
@@ -550,12 +779,136 @@ final activityHeartRateRecordsProvider =
         ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
     });
 
+final activityEventsProvider =
+    FutureProvider.family<List<ActivityEvent>, String>((ref, sessionLocalId) {
+      return ref.read(databaseProvider).getActivityEvents(sessionLocalId);
+    });
+
+final lapAnalysisServiceProvider = Provider<LapAnalysisService>((ref) {
+  return LapAnalysisService();
+});
+
+final activityLapSummariesProvider =
+    FutureProvider.family<List<ActivityLapSummary>, String>((
+      ref,
+      sessionLocalId,
+    ) async {
+      final db = ref.read(databaseProvider);
+      final session = await db.getActivitySession(sessionLocalId);
+      if (session == null) return const [];
+      final points = await db.getActivityPoints(sessionLocalId);
+      final events = await db.getActivityEvents(sessionLocalId);
+      final heartRateRecords = await ref.read(
+        activityHeartRateRecordsProvider(sessionLocalId).future,
+      );
+      return ref
+          .read(lapAnalysisServiceProvider)
+          .analyze(
+            session: session,
+            points: points,
+            events: events,
+            heartRateRecords: heartRateRecords,
+          );
+    });
+
+final fitnessProfileServiceProvider = Provider<FitnessProfileService>((ref) {
+  return FitnessProfileService(storage: ref.read(secureStorageProvider));
+});
+
+final fitnessProfileProvider = FutureProvider<FitnessProfile>((ref) {
+  return ref.read(fitnessProfileServiceProvider).loadProfile();
+});
+
+final heartRateZoneServiceProvider = Provider<HeartRateZoneService>((ref) {
+  return HeartRateZoneService();
+});
+
+final cadenceAnalysisServiceProvider = Provider<CadenceAnalysisService>((ref) {
+  return CadenceAnalysisService();
+});
+
+final activityHeartRateZonesProvider =
+    FutureProvider.family<HeartRateZoneResult?, String>((
+      ref,
+      sessionLocalId,
+    ) async {
+      final profile = await ref.watch(fitnessProfileProvider.future);
+      final heartRateRecords = await ref.watch(
+        activityHeartRateRecordsProvider(sessionLocalId).future,
+      );
+      return ref
+          .read(heartRateZoneServiceProvider)
+          .analyze(profile: profile, heartRateRecords: heartRateRecords);
+    });
+
+final activityCadenceAnalysisProvider =
+    FutureProvider.family<CadenceAnalysis?, String>((
+      ref,
+      sessionLocalId,
+    ) async {
+      final db = ref.read(databaseProvider);
+      final session = await db.getActivitySession(sessionLocalId);
+      if (session == null) return null;
+      final end = session.endedAt ?? DateTime.now();
+      final records = await db.getRecordsBetween(session.startedAt, end);
+      final stepRecords =
+          records.where((record) => record.dataType == 'STEPS').toList();
+      return ref
+          .read(cadenceAnalysisServiceProvider)
+          .analyze(session: session, stepRecords: stepRecords);
+    });
+
 final trainingInsightsServiceProvider = Provider<TrainingInsightsService>((
   ref,
 ) {
   return TrainingInsightsService(ref.read(databaseProvider));
 });
 
-final trainingInsightsProvider = FutureProvider<TrainingInsightSummary>((ref) {
-  return ref.read(trainingInsightsServiceProvider).buildSummary();
+final trainingGoalServiceProvider = Provider<TrainingGoalService>((ref) {
+  return TrainingGoalService(storage: ref.read(secureStorageProvider));
 });
+
+final trainingGoalsProvider = FutureProvider<TrainingGoals>((ref) {
+  return ref.read(trainingGoalServiceProvider).loadGoals();
+});
+
+final trainingInsightsProvider = FutureProvider<TrainingInsightSummary>((
+  ref,
+) async {
+  final goals = await ref.watch(trainingGoalsProvider.future);
+  return ref.read(trainingInsightsServiceProvider).buildSummary(goals);
+});
+
+final trainingPlanServiceProvider = Provider<TrainingPlanService>((ref) {
+  return TrainingPlanService(ref.read(databaseProvider));
+});
+
+final activeTrainingPlanProvider = FutureProvider<TrainingPlanSnapshot>((ref) {
+  return ref.read(trainingPlanServiceProvider).loadActiveSnapshot();
+});
+
+final vo2MaxServiceProvider = Provider<Vo2MaxService>((ref) {
+  return Vo2MaxService(
+    db: ref.read(databaseProvider),
+    fitnessProfileService: ref.read(fitnessProfileServiceProvider),
+  );
+});
+
+final vo2MaxProvider = FutureProvider<Vo2MaxSummary>((ref) {
+  return ref.read(vo2MaxServiceProvider).estimate();
+});
+
+final personalRecordServiceProvider = Provider<PersonalRecordService>((ref) {
+  return PersonalRecordService(ref.read(databaseProvider));
+});
+
+final personalRecordsProvider = FutureProvider<List<PersonalRecord>>((ref) {
+  return ref.read(personalRecordServiceProvider).rebuildAndLoadRecords();
+});
+
+final activityPersonalRecordsProvider =
+    FutureProvider.family<List<PersonalRecord>, String>((ref, sessionLocalId) {
+      return ref
+          .read(personalRecordServiceProvider)
+          .recordsForSession(sessionLocalId);
+    });

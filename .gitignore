@@ -4,6 +4,7 @@
 *.pyc
 *.swp
 .DS_Store
+.DS_Store?
 .atom/
 .build/
 .buildlog/
@@ -11,6 +12,9 @@
 .svn/
 .swiftpm/
 migrate_working_dir/
+Thumbs.db
+ehthumbs.db
+desktop.ini
 
 # IntelliJ related
 *.iml
@@ -32,6 +36,8 @@ migrate_working_dir/
 .pub-cache/
 .pub/
 /build/
+coverage/
+*.lcov
 
 # Symbolication related
 app.*.symbols
@@ -43,15 +49,86 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+/android/.gradle/
+/android/captures/
+/android/local.properties
+/android/**/GeneratedPluginRegistrant.java
+/android/**/.cxx/
 
-# Android release signing secrets
+# iOS/macOS generated files
+**/Flutter/ephemeral/
+**/Flutter/Generated.xcconfig
+**/Flutter/flutter_export_environment.sh
+**/Flutter/flutter_assets/
+**/Flutter/App.framework
+**/Flutter/Flutter.framework
+**/Pods/
+**/.symlinks/
+**/DerivedData/
+**/xcuserdata/
+
+# Linux/Windows generated plugin links
+/linux/flutter/ephemeral/
+/windows/flutter/ephemeral/
+
+# Release signing secrets
 /android/key.properties
 /android/app/upload-keystore.jks
+**/*.jks
+**/*.keystore
+**/*.p12
+**/*.pfx
+**/*.pem
+**/*.mobileprovision
+**/*.cer
+**/*.certSigningRequest
+
+# Service credentials and local environment
+.env
+.env.*
+!.env.example
+!.env.*.example
+google-services.json
+GoogleService-Info.plist
+auth.json
+config.yaml
+credentials.json
+service-account*.json
+secrets.*
+
+# Local databases, exports, and user data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.pmtiles
+*.mbtiles
+*.gpkg
+*.gpx
+*.zip
+*.tar
+*.tar.gz
+health-export-*/
+exports/
+offline_maps/
 
 # Local research/cache artifacts
 /.tmp-skill-research/
+/.tmp/
 /debug/
 build.log
 build_ps.log
 .tmp-flutter-run-*.log
 adb-health-analyzer-*.png
+
+# Internal planning docs
+/docs/PRD_UX_UPGRADE.md
+/docs/ROADMAP_SUPER_APP.md
+
+# Node/Koyeb local artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-store/

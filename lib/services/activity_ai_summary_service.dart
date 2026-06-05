@@ -2,26 +2,38 @@ import 'dart:convert';
 
 import '../database/database.dart';
 import 'activity_analysis_service.dart';
+import 'cadence_analysis_service.dart';
+import 'geoid_correction_service.dart';
+import 'workout_narrative_service.dart';
 
 class ActivityAiSummaryDraft {
   final String jsonSummary;
   final String markdownSummary;
+  final String narrative;
 
   const ActivityAiSummaryDraft({
     required this.jsonSummary,
     required this.markdownSummary,
+    required this.narrative,
   });
 }
 
 class ActivityAiSummaryService {
   final ActivityAnalysisService analysisService;
+  final WorkoutNarrativeService narrativeService;
+  final GeoidCorrectionService geoidCorrectionService;
 
-  const ActivityAiSummaryService(this.analysisService);
+  const ActivityAiSummaryService(
+    this.analysisService,
+    this.narrativeService, {
+    this.geoidCorrectionService = const GeoidCorrectionService(),
+  });
 
   ActivityAiSummaryDraft generate({
     required ActivitySession session,
     required List<ActivityPoint> points,
     required List<HealthRecord> heartRateRecords,
+    CadenceAnalysis? cadenceAnalysis,
   }) {
     final analysis = analysisService.analyze(session, points);
     final gpsQuality = analysis.gpsQuality;
@@ -31,8 +43,17 @@ class ActivityAiSummaryService {
             ? metadata['stopped_segments'] as List<dynamic>
             : const <dynamic>[];
     final healthContext = _healthContext(heartRateRecords);
+    if (cadenceAnalysis != null) {
+      healthContext['cadence'] = _cadenceContext(cadenceAnalysis);
+    }
     final dataGaps = _dataGaps(session, points, heartRateRecords);
+    final elevation = geoidCorrectionService.summarizePoints(points);
     final pace = _paceText(session.distanceMeters, session.movingSeconds);
+    final narrative = narrativeService.generate(
+      session: session,
+      heartRateRecords: heartRateRecords,
+      cadence: cadenceAnalysis,
+    );
 
     final summary = <String, dynamic>{
       'sport': {
@@ -61,6 +82,7 @@ class ActivityAiSummaryService {
       'ascent': {
         'ascent_meters': session.ascentMeters,
         'descent_meters': session.descentMeters,
+        'elevation_correction': elevation.toJson(),
       },
       'auto_pause_segments': autoPauseSegments,
       'gps_quality': {
@@ -78,11 +100,17 @@ class ActivityAiSummaryService {
       },
       'data_gaps': dataGaps,
       'health_context': healthContext,
+      'workout_narrative': {
+        'text': narrative,
+        'generated_by': 'local_rules',
+        'raw_route_points_included': false,
+      },
     };
 
     return ActivityAiSummaryDraft(
       jsonSummary: jsonEncode(summary),
       markdownSummary: _markdown(session, summary, dataGaps, healthContext),
+      narrative: narrative,
     );
   }
 
@@ -108,6 +136,18 @@ class ActivityAiSummaryService {
     };
   }
 
+  Map<String, dynamic> _cadenceContext(CadenceAnalysis cadence) {
+    return {
+      'applicable': cadence.applicable,
+      'available': cadence.available,
+      'status': cadence.status,
+      'avg_steps_per_minute': cadence.averageStepsPerMinute,
+      'max_steps_per_minute': cadence.maxStepsPerMinute,
+      'total_steps': cadence.totalSteps,
+      'sources': cadence.sources,
+    };
+  }
+
   List<String> _dataGaps(
     ActivitySession session,
     List<ActivityPoint> points,
@@ -116,6 +156,12 @@ class ActivityAiSummaryService {
     final gaps = <String>[];
     if (session.requiresGps && points.length < 2) {
       gaps.add('gps_route_points_missing_or_too_short');
+    }
+    final elevation = geoidCorrectionService.summarizePoints(points);
+    if (session.requiresGps && !elevation.hasAltitude) {
+      gaps.add('gps_altitude_sensor_not_found');
+    } else if (session.requiresGps && !elevation.hasCorrection) {
+      gaps.add('geoid_correction_missing');
     }
     if (heartRateRecords.isEmpty) {
       gaps.add('heart_rate_overlap_missing');
@@ -137,6 +183,10 @@ class ActivityAiSummaryService {
   ) {
     final distance = (session.distanceMeters / 1000).toStringAsFixed(2);
     final hr = healthContext['heart_rate'] as Map<String, dynamic>;
+    final ascent = summary['ascent'] as Map<String, dynamic>;
+    final elevation =
+        ascent['elevation_correction'] as Map<String, dynamic>? ??
+        const <String, dynamic>{};
     final hrLine =
         hr['available'] == true
             ? 'Heart rate: avg ${(hr['avg_bpm'] as double).round()} bpm, min ${(hr['min_bpm'] as double).round()}, max ${(hr['max_bpm'] as double).round()}.'
@@ -150,9 +200,11 @@ class ActivityAiSummaryService {
 - Distance: $distance km
 - Pace: ${(summary['pace'] as Map<String, dynamic>)['text']}
 - Elevation: +${session.ascentMeters.round()} m / -${session.descentMeters.round()} m
+- Elevation correction: ${elevation['status'] ?? 'unknown'} (${(elevation['corrected_altitude_points'] ?? 0)} corrected points, model ${(elevation['models'] as List?)?.join(', ') ?? 'none'})
 - Privacy: ${session.routeVisibility}, hide start/end ${session.hideStartEndMeters.round()} m, route detail sync ${session.syncRouteDetail}
 - GPS quality: ${(summary['gps_quality'] as Map<String, dynamic>)['good']} good, ${(summary['gps_quality'] as Map<String, dynamic>)['usable']} usable, ${(summary['gps_quality'] as Map<String, dynamic>)['low']} low, ${(summary['gps_quality'] as Map<String, dynamic>)['unknown']} unknown
 - $hrLine
+- Narrative: ${(summary['workout_narrative'] as Map<String, dynamic>)['text']}
 - Data gaps: ${dataGaps.isEmpty ? 'none' : dataGaps.join(', ')}
 
 Wellness/activity analysis only. Do not use this as medical diagnosis.

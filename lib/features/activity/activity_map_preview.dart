@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/sport_mode.dart';
+import '../../providers/health_provider.dart';
 import '../../services/activity_recorder_service.dart';
 import '../../services/moving_time_service.dart';
 import '../../shared/theme/app_theme.dart';
 import '../../shared/widgets/premium_card.dart';
 import 'widgets/route_map.dart';
 
-class ActivityMapPreview extends StatefulWidget {
+class ActivityMapPreview extends ConsumerStatefulWidget {
   final SportMode selectedMode;
   final ActivityRecorderSnapshot? snapshot;
 
@@ -18,10 +20,10 @@ class ActivityMapPreview extends StatefulWidget {
   });
 
   @override
-  State<ActivityMapPreview> createState() => _ActivityMapPreviewState();
+  ConsumerState<ActivityMapPreview> createState() => _ActivityMapPreviewState();
 }
 
-class _ActivityMapPreviewState extends State<ActivityMapPreview> {
+class _ActivityMapPreviewState extends ConsumerState<ActivityMapPreview> {
   RouteMapStyle _style = RouteMapStyle.street;
 
   @override
@@ -31,6 +33,21 @@ class _ActivityMapPreviewState extends State<ActivityMapPreview> {
     final isRecording = widget.snapshot?.isRecording ?? false;
     final points = widget.snapshot?.routePoints ?? const <TrackPoint>[];
     final hasPoints = points.isNotEmpty;
+    final targetRoute = ref.watch(routeTargetProvider).valueOrNull;
+    final targetGeometry =
+        targetRoute == null
+            ? null
+            : ref.read(savedRouteServiceProvider).geometryFor(targetRoute);
+    final targetPoints =
+        targetGeometry?.points
+            .map(
+              (point) => RouteMapPoint(
+                latitude: point.latitude,
+                longitude: point.longitude,
+              ),
+            )
+            .toList(growable: false) ??
+        const <RouteMapPoint>[];
     final accuracy = widget.snapshot?.lastAccuracyMeters;
     final qualityLabel =
         isRecording
@@ -92,6 +109,31 @@ class _ActivityMapPreviewState extends State<ActivityMapPreview> {
               title: 'No GPS route for this mode',
               body:
                   'Indoor and strength-style modes save workout summary only. Pick an outdoor mode to record a route map.',
+            )
+          else if (!hasPoints &&
+              targetRoute != null &&
+              targetPoints.length >= 2)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                RouteMap(
+                  points: targetPoints,
+                  style: _style,
+                  height: 220,
+                  interactive: false,
+                  emptyLabel: 'Target route preview unavailable.',
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Target route: ${targetRoute.name}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
             )
           else if (!hasPoints)
             _InlineNotice(

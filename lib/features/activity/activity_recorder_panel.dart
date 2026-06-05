@@ -237,8 +237,8 @@ class _PreStartChecklist extends StatelessWidget {
             ),
             const _ChecklistRow(
               icon: Icons.volume_up_outlined,
-              label: 'Audio cues placeholder',
-              ok: false,
+              label: 'Voice cues available in Settings',
+              ok: true,
             ),
           ],
         ),

@@ -5,7 +5,7 @@ import 'package:uuid/uuid.dart';
 import '../database/database.dart';
 import 'ai_tier_service.dart';
 import 'ai_tool_executor_service.dart';
-import 'deepseek_service.dart';
+import 'llm_service.dart';
 
 class AiAgentResponse {
   final String content;
@@ -31,16 +31,23 @@ class AiAgentService {
     'generate_recovery_advice',
     'load_route_summary',
     'get_privacy_status',
+    'get_pr_history',
+    'get_best_efforts',
+    'get_goal_progress',
+    'get_hr_zone_summary',
+    'get_vo2max_trend',
+    'suggest_next_workout',
+    'get_training_plan_status',
   };
 
-  final DeepSeekService deepSeekService;
+  final LlmService llmService;
   final AiToolExecutorService tools;
   final AiTierPolicy tierPolicy;
   final AiUsageTracker usageTracker;
   final _uuid = const Uuid();
 
   AiAgentService({
-    required this.deepSeekService,
+    required this.llmService,
     required this.tools,
     required this.tierPolicy,
     required this.usageTracker,
@@ -51,12 +58,14 @@ class AiAgentService {
     required String contextMode,
     ActivitySession? latestActivity,
     String? conversationId,
+    String? conversationContext,
   }) async {
     final config = await tierPolicy.loadConfig();
     final usageWindow = await usageTracker.resolveActiveWindow();
     final resolvedConversationId = conversationId ?? _uuid.v4();
     final messageId = _uuid.v4();
     var toolCalls = 0;
+    final cloudSettings = await llmService.loadSettings();
 
     final messages = <Map<String, String>>[
       {
@@ -77,15 +86,47 @@ class AiAgentService {
           'question': prompt,
           'context_mode': contextMode,
           'latest_activity_local_id': latestActivity?.localId,
+          if (conversationContext != null &&
+              conversationContext.trim().isNotEmpty)
+            'conversation_memory': conversationContext.trim(),
           'tier': config.tier.name,
           'max_tool_calls': config.maxToolCallsPerMessage,
         }),
       },
     ];
 
+    if (!cloudSettings.isConfigured) {
+      final fallback = await localRulesResponse(
+        prompt: prompt,
+        contextMode: contextMode,
+        latestActivity: latestActivity,
+        conversationId: resolvedConversationId,
+        messageId: messageId,
+        usageWindowId: usageWindow.windowId,
+        tier: config.tier.name,
+      );
+      return AiAgentResponse(
+        content:
+            'Cloud AI is not configured yet. I used local rules from your on-device summaries instead.\n\n$fallback',
+        mode: 'local_rules',
+        toolCallsUsed: 1,
+      );
+    }
+
     try {
       for (var i = 0; i < config.maxToolCallsPerMessage; i++) {
-        final raw = await deepSeekService.chat(messages: messages);
+        final completion = await llmService.chatCompletion(
+          messages: messages,
+          settings: cloudSettings,
+        );
+        final raw = completion.content;
+        if (completion.inputTokens > 0 || completion.outputTokens > 0) {
+          await usageTracker.increment(
+            usageWindowId: usageWindow.windowId,
+            inputTokens: completion.inputTokens,
+            outputTokens: completion.outputTokens,
+          );
+        }
         final parsed = _tryJson(raw);
         if (parsed == null) {
           return AiAgentResponse(
@@ -164,7 +205,7 @@ class AiAgentService {
         tier: config.tier.name,
       );
       return AiAgentResponse(
-        content: 'DeepSeek unavailable: $error\n\n$fallback',
+        content: 'Cloud AI provider unavailable: $error\n\n$fallback',
         mode: 'local_rules',
         toolCallsUsed: toolCalls,
         error: error.toString(),

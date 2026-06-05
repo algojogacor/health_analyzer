@@ -2,8 +2,13 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
+import 'package:flutter_map_pmtiles/flutter_map_pmtiles.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../database/database.dart';
+import '../../../providers/health_provider.dart';
+import '../../../services/map_tile_provider_service.dart';
 import '../../../services/offline_map_service.dart';
 
 enum RouteMapStyle { street, satellite }
@@ -22,17 +27,19 @@ class RouteMapPoint {
   LatLng get latLng => LatLng(latitude, longitude);
 }
 
-class RouteMap extends StatefulWidget {
+class RouteMap extends ConsumerStatefulWidget {
   final List<RouteMapPoint> points;
   final RouteMapStyle style;
   final double height;
   final bool interactive;
   final bool showAccuracy;
+  final List<RouteMapPoint> targetPoints;
   final String? emptyLabel;
   final MapController? controller;
   final bool followCurrentLocation;
   final double? followZoom;
   final double borderRadius;
+  final VoidCallback? onUserInteraction;
 
   const RouteMap({
     super.key,
@@ -41,18 +48,20 @@ class RouteMap extends StatefulWidget {
     this.height = 260,
     this.interactive = true,
     this.showAccuracy = false,
+    this.targetPoints = const [],
     this.emptyLabel,
     this.controller,
     this.followCurrentLocation = false,
     this.followZoom,
     this.borderRadius = 8,
+    this.onUserInteraction,
   });
 
   @override
-  State<RouteMap> createState() => _RouteMapState();
+  ConsumerState<RouteMap> createState() => _RouteMapState();
 }
 
-class _RouteMapState extends State<RouteMap> {
+class _RouteMapState extends ConsumerState<RouteMap> {
   static final _transparentTile = MemoryImage(
     Uint8List.fromList([
       137,
@@ -127,6 +136,9 @@ class _RouteMapState extends State<RouteMap> {
 
   late final MapController _internalController;
   bool _mapUnavailable = false;
+  String? _lastUrlTemplate;
+  String? _pmTilesSource;
+  Future<PmTilesTileProvider>? _pmTilesProviderFuture;
 
   MapController get _controller => widget.controller ?? _internalController;
 
@@ -184,15 +196,86 @@ class _RouteMapState extends State<RouteMap> {
     final route = widget.points
         .map((point) => point.latLng)
         .toList(growable: false);
+    final targetRoute = widget.targetPoints
+        .map((point) => point.latLng)
+        .toList(growable: false);
     final center = _centerFor(route);
     final zoom = _initialZoom(route);
     final last = widget.points.last;
+    final settings =
+        ref.watch(mapTileSettingsProvider).valueOrNull ??
+        MapTileSettings.defaults;
+    final source =
+        widget.style == RouteMapStyle.satellite
+            ? ref.read(mapTileProviderServiceProvider).satelliteSource(settings)
+            : ref.read(mapTileProviderServiceProvider).streetSource(settings);
+    final offlineRegions =
+        ref.watch(offlineMapRegionsProvider).valueOrNull ??
+        const <OfflineMapRegion>[];
+    final offlinePack = OfflineMapService.selectReadyPmTilesPack(
+      center: center,
+      style: widget.style.name,
+      regions: offlineRegions,
+    );
+    if (_lastUrlTemplate != source.urlTemplate) {
+      _lastUrlTemplate = source.urlTemplate;
+      _mapUnavailable = false;
+    }
 
+    if (offlinePack != null) {
+      return FutureBuilder<PmTilesTileProvider>(
+        future: _pmTilesProviderFor(offlinePack.path),
+        builder: (context, snapshot) {
+          final tileLayer =
+              snapshot.hasData
+                  ? _pmTilesTileLayer(snapshot.requireData, offlinePack)
+                  : _tileLayer(source);
+          return _buildMapShell(
+            context: context,
+            route: route,
+            targetRoute: targetRoute,
+            center: center,
+            zoom: zoom,
+            last: last,
+            source: source,
+            tileLayer: tileLayer,
+            offlinePack: snapshot.hasData ? offlinePack : null,
+            offlineError: snapshot.hasError,
+          );
+        },
+      );
+    }
+
+    return _buildMapShell(
+      context: context,
+      route: route,
+      targetRoute: targetRoute,
+      center: center,
+      zoom: zoom,
+      last: last,
+      source: source,
+      tileLayer: _tileLayer(source),
+    );
+  }
+
+  Widget _buildMapShell({
+    required BuildContext context,
+    required List<LatLng> route,
+    required List<LatLng> targetRoute,
+    required LatLng center,
+    required double zoom,
+    required RouteMapPoint last,
+    required MapTileSource source,
+    required TileLayer tileLayer,
+    OfflinePmTilesPack? offlinePack,
+    bool offlineError = false,
+  }) {
     final map = FlutterMap(
       mapController: _controller,
       options: MapOptions(
         initialCenter: center,
         initialZoom: zoom,
+        onMapEvent: _handleMapEvent,
         interactionOptions: InteractionOptions(
           flags:
               widget.interactive
@@ -201,7 +284,17 @@ class _RouteMapState extends State<RouteMap> {
         ),
       ),
       children: [
-        _tileLayer(),
+        tileLayer,
+        if (targetRoute.length >= 2)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: targetRoute,
+                color: Colors.deepPurple.withValues(alpha: 0.65),
+                strokeWidth: 4,
+              ),
+            ],
+          ),
         if (widget.showAccuracy && last.accuracyMeters != null)
           CircleLayer(
             circles: [
@@ -231,9 +324,7 @@ class _RouteMapState extends State<RouteMap> {
         MarkerLayer(markers: _markers(route)),
         SimpleAttributionWidget(
           source: Text(
-            widget.style == RouteMapStyle.satellite
-                ? 'Esri World Imagery'
-                : 'OpenStreetMap contributors',
+            offlinePack?.attribution ?? source.attribution,
             style: const TextStyle(fontSize: 10),
           ),
           backgroundColor: Theme.of(
@@ -269,6 +360,75 @@ class _RouteMapState extends State<RouteMap> {
               ),
             ),
           ),
+        if (offlinePack != null || offlineError)
+          Positioned(
+            left: 12,
+            top: 12,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(999),
+                border: Border.all(
+                  color:
+                      offlineError
+                          ? Colors.orange.shade200
+                          : Colors.green.shade200,
+                ),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 6,
+                ),
+                child: Text(
+                  offlineError
+                      ? 'Offline pack unavailable'
+                      : 'Offline ${offlinePack!.style}',
+                  style: TextStyle(
+                    color:
+                        offlineError
+                            ? Colors.orange.shade900
+                            : Colors.green.shade800,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        if (source.warning != null)
+          Positioned(
+            left: 12,
+            right: 12,
+            top: 12,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Theme.of(
+                  context,
+                ).colorScheme.surface.withValues(alpha: 0.92),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.orange.shade200),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 7,
+                ),
+                child: Text(
+                  source.warning!,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.orange.shade900,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ),
+          ),
       ],
     );
 
@@ -281,34 +441,59 @@ class _RouteMapState extends State<RouteMap> {
     );
   }
 
-  TileLayer _tileLayer() {
-    switch (widget.style) {
-      case RouteMapStyle.satellite:
-        return TileLayer(
-          urlTemplate:
-              'https://server.arcgisonline.com/ArcGIS/rest/services/'
-              'World_Imagery/MapServer/tile/{z}/{y}/{x}',
-          userAgentPackageName: 'com.healthanalyzer.health_analyzer',
-          tileProvider: OfflineMapService.tileProviderForStyle('satellite'),
-          maxNativeZoom: 19,
-          errorImage: _transparentTile,
-          errorTileCallback: _handleTileError,
-        );
-      case RouteMapStyle.street:
-        return TileLayer(
-          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.healthanalyzer.health_analyzer',
-          tileProvider: OfflineMapService.tileProviderForStyle('street'),
-          maxNativeZoom: 19,
-          errorImage: _transparentTile,
-          errorTileCallback: _handleTileError,
-        );
+  Future<PmTilesTileProvider> _pmTilesProviderFor(String path) {
+    if (_pmTilesSource != path || _pmTilesProviderFuture == null) {
+      _pmTilesSource = path;
+      _pmTilesProviderFuture = PmTilesTileProvider.fromSource(path);
     }
+    return _pmTilesProviderFuture!;
+  }
+
+  TileLayer _tileLayer(MapTileSource source) {
+    return TileLayer(
+      urlTemplate: source.urlTemplate,
+      userAgentPackageName: 'com.healthanalyzer.health_analyzer',
+      maxNativeZoom: source.maxNativeZoom,
+      errorImage: _transparentTile,
+      errorTileCallback: _handleTileError,
+    );
+  }
+
+  TileLayer _pmTilesTileLayer(
+    PmTilesTileProvider provider,
+    OfflinePmTilesPack pack,
+  ) {
+    return TileLayer(
+      tileProvider: provider,
+      minNativeZoom: pack.minZoom,
+      maxNativeZoom: pack.maxZoom,
+      errorImage: _transparentTile,
+      errorTileCallback: _handleTileError,
+    );
   }
 
   void _handleTileError(Object tile, Object error, StackTrace? stackTrace) {
     if (_mapUnavailable || !mounted) return;
     setState(() => _mapUnavailable = true);
+  }
+
+  void _handleMapEvent(MapEvent event) {
+    final source = event.source;
+    final userDriven =
+        source == MapEventSource.dragStart ||
+        source == MapEventSource.onDrag ||
+        source == MapEventSource.dragEnd ||
+        source == MapEventSource.multiFingerGestureStart ||
+        source == MapEventSource.onMultiFinger ||
+        source == MapEventSource.multiFingerEnd ||
+        source == MapEventSource.scrollWheel ||
+        source == MapEventSource.doubleTap ||
+        source == MapEventSource.doubleTapZoomAnimationController;
+    if (!userDriven || widget.onUserInteraction == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onUserInteraction?.call();
+    });
   }
 
   List<Marker> _markers(List<LatLng> route) {

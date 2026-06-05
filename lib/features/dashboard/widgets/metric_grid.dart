@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../providers/health_provider.dart';
+import '../../../services/training_goal_service.dart';
 import '../../../shared/theme/app_theme.dart';
 import '../../../shared/utils/formatters.dart';
 import '../../../shared/widgets/premium_card.dart';
@@ -8,6 +9,7 @@ import '../../../shared/widgets/premium_card.dart';
 class MetricGrid extends StatelessWidget {
   final HealthCoverageSummary summary;
   final DashboardMetricTrends? trends;
+  final TrainingGoals goals;
   final DashboardWidgetPreferences preferences;
   final ValueChanged<String>? onMetricTap;
 
@@ -15,6 +17,7 @@ class MetricGrid extends StatelessWidget {
     super.key,
     required this.summary,
     required this.preferences,
+    required this.goals,
     this.trends,
     this.onMetricTap,
   });
@@ -32,12 +35,15 @@ class MetricGrid extends StatelessWidget {
         period: 'Today',
         value: fmtNumber(summary.wearableSteps),
         detail:
-            summary.phoneSteps > 0
+            summary.wearableSteps <= 0 && summary.phoneSteps <= 0
+                ? 'Wearable steps not found'
+                : summary.phoneSteps > 0
                 ? 'Phone source ${summary.phoneSteps} not merged'
-                : 'Wearable source',
+                : 'Target ${fmtNumber(goals.dailySteps)}',
         icon: Icons.directions_walk,
         color: AppTheme.cyan,
-        progress: (summary.wearableSteps / 10000).clamp(0, 1).toDouble(),
+        progress:
+            (summary.wearableSteps / goals.dailySteps).clamp(0, 1).toDouble(),
         trendValues: trends?.steps,
       ),
       MetricCard(
@@ -56,10 +62,16 @@ class MetricGrid extends StatelessWidget {
         title: 'Sleep',
         period: 'Last night',
         value: fmtMinutes(summary.asleepMinutes),
-        detail: 'In bed ${fmtMinutes(summary.timeInBedMinutes)}',
+        detail:
+            summary.asleepMinutes <= 0
+                ? 'Sleep sensor not found'
+                : 'Target ${goals.sleepTargetLabel}',
         icon: Icons.nightlight_round,
         color: AppTheme.violet,
-        progress: (summary.asleepMinutes / 480).clamp(0, 1).toDouble(),
+        progress:
+            (summary.asleepMinutes / goals.sleepTargetMinutes)
+                .clamp(0, 1)
+                .toDouble(),
         trendValues: trends?.sleepMinutes,
       ),
       MetricCard(
@@ -67,7 +79,10 @@ class MetricGrid extends StatelessWidget {
         title: 'Heart rate',
         period: 'Today',
         value: fmtNumber(summary.avgHeartRate, suffix: 'bpm'),
-        detail: 'Min ${fmtNumber(summary.minHeartRate, suffix: 'bpm')}',
+        detail:
+            summary.avgHeartRate == null
+                ? 'Heart-rate sensor not found'
+                : 'Min ${fmtNumber(summary.minHeartRate, suffix: 'bpm')}',
         icon: Icons.favorite,
         color: AppTheme.coral,
       ),
@@ -76,7 +91,10 @@ class MetricGrid extends StatelessWidget {
         title: 'Blood oxygen',
         period: 'Today',
         value: fmtNumber(summary.avgSpo2, decimals: 1, suffix: '%'),
-        detail: 'Min ${fmtNumber(summary.minSpo2, decimals: 1, suffix: '%')}',
+        detail:
+            summary.avgSpo2 == null
+                ? 'SpO2 sensor not found'
+                : 'Min ${fmtNumber(summary.minSpo2, decimals: 1, suffix: '%')}',
         icon: Icons.bloodtype,
         color: Colors.pink.shade500,
       ),
@@ -85,7 +103,10 @@ class MetricGrid extends StatelessWidget {
         title: 'HRV',
         period: 'Today',
         value: fmtNumber(summary.hrvAvgMs, decimals: 1, suffix: 'ms'),
-        detail: summary.hrvAvgMs == null ? 'No exported data' : 'Stress proxy',
+        detail:
+            summary.hrvAvgMs == null
+                ? 'HRV/stress export not found'
+                : 'Stress proxy',
         icon: Icons.monitor_heart,
         color: AppTheme.mint,
       ),
@@ -126,9 +147,10 @@ class MetricGrid extends StatelessWidget {
         title: 'Weekly activity',
         period: '7 days',
         value: fmtNumber(weeklySteps.round()),
-        detail: 'Activity calendar proxy',
+        detail: 'Target ${fmtNumber(goals.weeklyStepTarget)}',
         icon: Icons.calendar_month_outlined,
         color: Colors.cyan.shade700,
+        progress: (weeklySteps / goals.weeklyStepTarget).clamp(0, 1).toDouble(),
         trendValues: trends?.steps,
       ),
       MetricCard(
@@ -136,10 +158,13 @@ class MetricGrid extends StatelessWidget {
         title: 'Sleep debt',
         period: 'Last night',
         value: '${sleepDebtHours.toStringAsFixed(1)} h',
-        detail: 'Target 8 h sleep',
+        detail: 'Target ${goals.sleepTargetLabel} sleep',
         icon: Icons.bedtime_outlined,
         color: Colors.deepPurple.shade300,
-        progress: (1 - (sleepDebtHours / 8)).clamp(0, 1).toDouble(),
+        progress:
+            (1 - (sleepDebtHours / (goals.sleepTargetMinutes / 60)))
+                .clamp(0, 1)
+                .toDouble(),
       ),
       MetricCard(
         metricKey: 'resources',

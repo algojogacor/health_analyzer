@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_map_dragmarker/flutter_map_dragmarker.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:latlong2/latlong.dart';
 
 import '../../../database/database.dart';
+import '../../../providers/health_provider.dart';
+import '../../../services/map_tile_provider_service.dart';
 import '../../../services/route_crop_service.dart';
 import '../../../shared/widgets/info_panel.dart';
 
-class RouteCropPreview extends StatefulWidget {
+class RouteCropPreview extends ConsumerStatefulWidget {
   final List<ActivityPoint> points;
   final double initialHiddenMeters;
   final ValueChanged<double> onHiddenMetersChanged;
@@ -20,10 +23,10 @@ class RouteCropPreview extends StatefulWidget {
   });
 
   @override
-  State<RouteCropPreview> createState() => _RouteCropPreviewState();
+  ConsumerState<RouteCropPreview> createState() => _RouteCropPreviewState();
 }
 
-class _RouteCropPreviewState extends State<RouteCropPreview> {
+class _RouteCropPreviewState extends ConsumerState<RouteCropPreview> {
   late double _hiddenMeters;
 
   List<CropRoutePoint> get _cropPoints => widget.points
@@ -68,6 +71,12 @@ class _RouteCropPreviewState extends State<RouteCropPreview> {
     final original = cropPoints.map(_latLng).toList(growable: false);
     final visible = state.visiblePoints.map(_latLng).toList(growable: false);
     final center = LatLngBounds.fromPoints(original).center;
+    final settings =
+        ref.watch(mapTileSettingsProvider).valueOrNull ??
+        MapTileSettings.defaults;
+    final tileSource = ref
+        .read(mapTileProviderServiceProvider)
+        .streetSource(settings);
 
     return Card(
       elevation: 0,
@@ -112,11 +121,10 @@ class _RouteCropPreviewState extends State<RouteCropPreview> {
                   ),
                   children: [
                     TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      urlTemplate: tileSource.urlTemplate,
                       userAgentPackageName:
                           'com.healthanalyzer.health_analyzer',
-                      maxNativeZoom: 19,
+                      maxNativeZoom: tileSource.maxNativeZoom,
                     ),
                     PolylineLayer(
                       polylines: [
@@ -177,10 +185,27 @@ class _RouteCropPreviewState extends State<RouteCropPreview> {
                           ),
                         ],
                       ),
+                    SimpleAttributionWidget(
+                      source: Text(
+                        tileSource.attribution,
+                        style: const TextStyle(fontSize: 10),
+                      ),
+                    ),
                   ],
                 ),
               ),
             ),
+            if (tileSource.warning != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                tileSource.warning!,
+                style: TextStyle(
+                  color: Colors.orange.shade900,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 12,
+                ),
+              ),
+            ],
             const SizedBox(height: 12),
             Slider(
               value: state.hiddenMeters.clamp(0, state.maxHiddenMeters),

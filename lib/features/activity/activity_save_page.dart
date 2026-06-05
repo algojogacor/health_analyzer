@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:drift/drift.dart' show Value;
@@ -20,6 +22,7 @@ class ActivitySavePage extends ConsumerStatefulWidget {
 
 class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
   final _titleController = TextEditingController();
+  final _tagsController = TextEditingController();
   String? _initializedSessionId;
   String _routeVisibility = 'private';
   double _hideStartEndMeters = 300;
@@ -30,6 +33,7 @@ class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
   @override
   void dispose() {
     _titleController.dispose();
+    _tagsController.dispose();
     super.dispose();
   }
 
@@ -65,6 +69,14 @@ class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
               _Header(session: session),
               const SizedBox(height: 16),
               _TitleField(controller: _titleController),
+              const SizedBox(height: 12),
+              _TagsField(controller: _tagsController),
+              const SizedBox(height: 16),
+              _WorkoutNarrativePreview(
+                text: ref
+                    .read(workoutNarrativeServiceProvider)
+                    .generate(session: session, heartRateRecords: const []),
+              ),
               const SizedBox(height: 16),
               pointsValue.when(
                 data:
@@ -126,6 +138,7 @@ class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
     if (_initializedSessionId == session.localId) return;
     _initializedSessionId = session.localId;
     _titleController.text = session.title ?? session.sportName;
+    _tagsController.text = session.tags;
     _routeVisibility = session.routeVisibility;
     _hideStartEndMeters = session.hideStartEndMeters;
     _syncRouteDetail = session.syncRouteDetail;
@@ -135,12 +148,13 @@ class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
   Future<void> _save(ActivitySession session) async {
     setState(() => _saving = true);
     try {
-      await ref
+      final savedSnapshot = await ref
           .read(activityRecorderProvider)
           .saveCompleted(
             session.localId,
             ActivitySaveOptions(
               title: _titleController.text,
+              tags: _tagsController.text,
               routeVisibility: _routeVisibility,
               hideStartEndMeters: _hideStartEndMeters,
               syncRouteDetail: _syncRouteDetail,
@@ -148,6 +162,27 @@ class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
             ),
           );
       await _generateSummary(session.localId);
+      await ref
+          .read(proactiveInsightServiceProvider)
+          .maybeNotifyActivitySaved(session.localId);
+      final savedSession =
+          savedSnapshot.session ??
+          await ref.read(databaseProvider).getActivitySession(session.localId);
+      if (savedSession != null) {
+        unawaited(
+          ref.read(webhookServiceProvider).sendActivitySaved(savedSession),
+        );
+        final records = await ref
+            .read(personalRecordServiceProvider)
+            .recordsForSession(savedSession.localId);
+        if (records.isNotEmpty) {
+          unawaited(
+            ref
+                .read(webhookServiceProvider)
+                .sendPersonalRecords(savedSession, records),
+          );
+        }
+      }
       _invalidateActivityState(session.localId);
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -244,9 +279,17 @@ class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
     if (savedSession == null) return;
     final points = await ref.read(databaseProvider).getActivityPoints(localId);
     final hr = await ref.read(activityHeartRateRecordsProvider(localId).future);
+    final cadence = await ref.read(
+      activityCadenceAnalysisProvider(localId).future,
+    );
     final draft = ref
         .read(activityAiSummaryServiceProvider)
-        .generate(session: savedSession, points: points, heartRateRecords: hr);
+        .generate(
+          session: savedSession,
+          points: points,
+          heartRateRecords: hr,
+          cadenceAnalysis: cadence,
+        );
     await ref
         .read(databaseProvider)
         .upsertActivitySummary(
@@ -258,8 +301,25 @@ class _ActivitySavePageState extends ConsumerState<ActivitySavePage> {
             model: const Value('local-tool'),
             confidence: const Value('structured'),
             generatedBy: const Value('local'),
+            agentNotes: Value(draft.narrative),
           ),
         );
+  }
+}
+
+class _WorkoutNarrativePreview extends StatelessWidget {
+  final String text;
+
+  const _WorkoutNarrativePreview({required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return InfoPanel(
+      icon: Icons.auto_awesome_outlined,
+      title: 'Workout narrative',
+      body:
+          '$text\n\nA richer narrative with available HR/cadence context will be saved locally after you save the activity.',
+    );
   }
 }
 
@@ -352,6 +412,26 @@ class _TitleField extends StatelessWidget {
         labelText: 'Activity title',
         border: OutlineInputBorder(),
         prefixIcon: Icon(Icons.edit_outlined),
+      ),
+    );
+  }
+}
+
+class _TagsField extends StatelessWidget {
+  final TextEditingController controller;
+
+  const _TagsField({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: controller,
+      textInputAction: TextInputAction.done,
+      decoration: const InputDecoration(
+        labelText: 'Tags',
+        hintText: 'morning run, hot weather, fasted',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.sell_outlined),
       ),
     );
   }

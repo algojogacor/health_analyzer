@@ -11,3 +11,9 @@
 *.jar binary
 *.jks binary
 *.keystore binary
+*.p12 binary
+*.pfx binary
+*.pmtiles binary
+*.mbtiles binary
+*.gpkg binary
+*.zip binary

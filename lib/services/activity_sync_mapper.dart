@@ -81,6 +81,15 @@ String _activitySessionMetadata(ActivitySession session) {
   }
 
   metadata['title'] = session.title ?? session.sportName;
+  metadata['tags'] = _tagsList(session.tags);
   metadata['manual_paused_seconds'] = session.manualPausedSeconds;
   return jsonEncode(metadata);
+}
+
+List<String> _tagsList(String raw) {
+  return raw
+      .split(',')
+      .map((tag) => tag.trim())
+      .where((tag) => tag.isNotEmpty)
+      .toList(growable: false);
 }

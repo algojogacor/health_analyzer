@@ -75,6 +75,7 @@ CREATE TABLE activity_sessions (
     max_heart_rate REAL,
     manual_paused_seconds INTEGER NOT NULL DEFAULT 0,
     notes TEXT,
+    tags TEXT NOT NULL DEFAULT '',
     feeling TEXT,
     rpe INTEGER,
     gear_id TEXT,
@@ -201,6 +202,29 @@ CREATE TABLE ai_usage_windows (
     updated_at DATETIME
 );
 
+CREATE TABLE ai_conversations (
+    local_id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    summary TEXT,
+    context_mode TEXT NOT NULL DEFAULT 'daily',
+    message_count INTEGER NOT NULL DEFAULT 0,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    compacted_at DATETIME
+);
+
+CREATE TABLE ai_messages (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    local_id TEXT NOT NULL UNIQUE,
+    conversation_id TEXT NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    mode TEXT,
+    tool_calls_used INTEGER NOT NULL DEFAULT 0,
+    error TEXT,
+    created_at DATETIME NOT NULL
+);
+
 CREATE TABLE community_share_records (
     id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
     local_id TEXT NOT NULL UNIQUE,
@@ -226,6 +250,54 @@ CREATE TABLE challenge_invites (
     expires_at DATETIME
 );
 
+CREATE TABLE personal_records (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    local_id TEXT NOT NULL UNIQUE,
+    sport_key TEXT NOT NULL,
+    record_key TEXT NOT NULL,
+    label TEXT NOT NULL,
+    metric TEXT NOT NULL,
+    value REAL NOT NULL,
+    unit TEXT NOT NULL,
+    session_local_id TEXT NOT NULL,
+    achieved_at DATETIME NOT NULL,
+    created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+    updated_at DATETIME,
+    UNIQUE(sport_key, record_key)
+);
+
+CREATE TABLE training_plans (
+    local_id TEXT NOT NULL PRIMARY KEY,
+    plan_key TEXT NOT NULL,
+    title TEXT NOT NULL,
+    sport_key TEXT NOT NULL,
+    level TEXT NOT NULL,
+    start_date DATETIME NOT NULL,
+    weeks INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'active',
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    completed_at DATETIME
+);
+
+CREATE TABLE training_plan_workouts (
+    id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+    local_id TEXT NOT NULL UNIQUE,
+    plan_local_id TEXT NOT NULL,
+    week_index INTEGER NOT NULL,
+    day_index INTEGER NOT NULL,
+    scheduled_date DATETIME NOT NULL,
+    title TEXT NOT NULL,
+    workout_type TEXT NOT NULL,
+    target_duration_minutes INTEGER NOT NULL DEFAULT 0,
+    target_distance_meters REAL NOT NULL DEFAULT 0,
+    intensity TEXT NOT NULL DEFAULT 'easy',
+    status TEXT NOT NULL DEFAULT 'planned',
+    notes TEXT,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME
+);
+
 CREATE INDEX idx_activity_sessions_status ON activity_sessions(status, started_at);
 CREATE INDEX idx_activity_sessions_sync ON activity_sessions(sync_status);
 CREATE INDEX idx_activity_points_session_time ON activity_points(session_local_id, timestamp);
@@ -237,8 +309,15 @@ CREATE INDEX idx_daily_summaries_sync ON daily_summaries(sync_status);
 CREATE INDEX idx_ai_tool_calls_created ON ai_tool_calls(created_at);
 CREATE INDEX idx_ai_tool_calls_window ON ai_tool_calls(usage_window_id);
 CREATE INDEX idx_ai_usage_windows_tier_started ON ai_usage_windows(tier, started_at);
+CREATE INDEX idx_ai_conversations_updated ON ai_conversations(updated_at);
+CREATE INDEX idx_ai_messages_conversation_time ON ai_messages(conversation_id, created_at);
 CREATE INDEX idx_community_share_session ON community_share_records(session_local_id);
 CREATE INDEX idx_challenge_invites_status ON challenge_invites(status);
+CREATE INDEX idx_personal_records_sport ON personal_records(sport_key, record_key);
+CREATE INDEX idx_personal_records_session ON personal_records(session_local_id);
+CREATE INDEX idx_training_plans_status ON training_plans(status, start_date);
+CREATE INDEX idx_training_plan_workouts_plan ON training_plan_workouts(plan_local_id, scheduled_date);
+CREATE INDEX idx_training_plan_workouts_date ON training_plan_workouts(scheduled_date, status);
 
 -- Query: get unsynced records
 unsyncedRecords: SELECT * FROM health_records WHERE sync_status = 'pending' ORDER BY date_from ASC;
@@ -311,6 +390,22 @@ latestAiUsageWindowForTier:
     ORDER BY started_at DESC
     LIMIT 1;
 
+aiConversationsRecent:
+    SELECT * FROM ai_conversations
+    ORDER BY updated_at DESC
+    LIMIT ?;
+
+aiConversationById:
+    SELECT * FROM ai_conversations
+    WHERE local_id = ?
+    LIMIT 1;
+
+aiMessagesForConversation:
+    SELECT * FROM ai_messages
+    WHERE conversation_id = ?
+    ORDER BY created_at ASC
+    LIMIT ?;
+
 communitySharesRecent:
     SELECT * FROM community_share_records
     ORDER BY created_at DESC
@@ -320,6 +415,37 @@ challengeInvitesRecent:
     SELECT * FROM challenge_invites
     ORDER BY created_at DESC
     LIMIT ?;
+
+personalRecordsRecent:
+    SELECT * FROM personal_records
+    ORDER BY achieved_at DESC
+    LIMIT ?;
+
+personalRecordsForSession:
+    SELECT * FROM personal_records
+    WHERE session_local_id = ?
+    ORDER BY achieved_at DESC;
+
+activeTrainingPlan:
+    SELECT * FROM training_plans
+    WHERE status = 'active'
+    ORDER BY start_date DESC
+    LIMIT 1;
+
+trainingPlanByLocalId:
+    SELECT * FROM training_plans
+    WHERE local_id = ?
+    LIMIT 1;
+
+trainingPlanWorkoutsForPlan:
+    SELECT * FROM training_plan_workouts
+    WHERE plan_local_id = ?
+    ORDER BY scheduled_date ASC;
+
+trainingPlanWorkoutsBetween:
+    SELECT * FROM training_plan_workouts
+    WHERE scheduled_date >= ? AND scheduled_date < ?
+    ORDER BY scheduled_date ASC;
 
 -- Query: clean old synced records (older than N days)
 cleanOldRecords:

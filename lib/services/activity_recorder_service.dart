@@ -2,12 +2,16 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:drift/drift.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:uuid/uuid.dart';
 
 import '../database/database.dart';
 import '../models/sport_mode.dart';
+import 'foreground_recording_service.dart';
+import 'geoid_correction_service.dart';
 import 'health_service.dart';
 import 'moving_time_service.dart';
 
@@ -43,6 +47,7 @@ class ActivityRecorderSnapshot {
 
 class ActivitySaveOptions {
   final String title;
+  final String tags;
   final String routeVisibility;
   final double hideStartEndMeters;
   final bool syncRouteDetail;
@@ -50,6 +55,7 @@ class ActivitySaveOptions {
 
   const ActivitySaveOptions({
     required this.title,
+    this.tags = '',
     required this.routeVisibility,
     required this.hideStartEndMeters,
     required this.syncRouteDetail,
@@ -95,8 +101,10 @@ class ActivityRecorderService {
   final AppDatabase db;
   final HealthService healthService;
   final FlutterSecureStorage storage;
+  final ForegroundRecordingService foregroundService;
   final _uuid = const Uuid();
   final _movingTime = MovingTimeService();
+  final _geoid = const GeoidCorrectionService();
 
   StreamSubscription<Position>? _positionSub;
   SportMode? _activeMode;
@@ -109,11 +117,14 @@ class ActivityRecorderService {
     this.db,
     this.healthService, {
     FlutterSecureStorage? storage,
+    ForegroundRecordingService? foregroundService,
   }) : storage =
            storage ??
            const FlutterSecureStorage(
              aOptions: AndroidOptions(encryptedSharedPreferences: true),
-           );
+           ),
+       foregroundService =
+           foregroundService ?? const ForegroundRecordingService();
 
   Stream<ActivityRecorderSnapshot> get snapshots => _controller.stream;
 
@@ -156,6 +167,9 @@ class ActivityRecorderService {
       await _ensureLocationPermission(_activeMode!);
       await _startLocationStream();
       session = await db.activeActivitySession().getSingleOrNull();
+    }
+    if (session != null) {
+      await _startForegroundService(session);
     }
 
     final snapshot = _snapshot(session);
@@ -241,6 +255,10 @@ class ActivityRecorderService {
     _activeMode = mode;
     _manualPaused = false;
     _points.clear();
+    final insertedSession = await db.getActivitySession(localId);
+    if (insertedSession != null) {
+      await _startForegroundService(insertedSession);
+    }
 
     if (mode.requiresGps) {
       await _startLocationStream();
@@ -273,6 +291,7 @@ class ActivityRecorderService {
     );
     await _insertEvent(localId, 'manual_pause');
     final updated = await db.getActivitySession(localId);
+    await _updateForegroundService(updated);
     final snapshot = _snapshot(updated);
     _controller.add(snapshot);
     return snapshot;
@@ -312,6 +331,7 @@ class ActivityRecorderService {
     );
     await _insertEvent(localId, 'manual_resume');
     final updated = await db.getActivitySession(localId);
+    await _updateForegroundService(updated);
     final snapshot = _snapshot(updated);
     _controller.add(snapshot);
     return snapshot;
@@ -446,6 +466,7 @@ class ActivityRecorderService {
               ? existing.sportName
               : options.title.trim(),
         ),
+        tags: Value(_normalizeTags(options.tags)),
         status: const Value('completed'),
         endedAt: Value(endedAt),
         elapsedSeconds: Value(stats.elapsedSeconds),
@@ -483,6 +504,16 @@ class ActivityRecorderService {
     );
     _controller.add(snapshot);
     return snapshot;
+  }
+
+  String _normalizeTags(String raw) {
+    return raw
+        .split(RegExp(r'[,#]'))
+        .map((tag) => tag.trim().toLowerCase())
+        .where((tag) => tag.isNotEmpty)
+        .toSet()
+        .take(12)
+        .join(', ');
   }
 
   Future<ActivityRecorderSnapshot> discard({String? localId}) async {
@@ -544,6 +575,7 @@ class ActivityRecorderService {
   Future<void> stopLocationStreamOnly() async {
     await _positionSub?.cancel();
     _positionSub = null;
+    await foregroundService.stop();
   }
 
   Future<void> dispose() async {
@@ -566,11 +598,18 @@ class ActivityRecorderService {
     final mode = _activeMode;
     if (localId == null || mode == null) return;
 
+    final rawAltitude = _usableAltitude(position);
+    final elevationCorrection = _geoid.correctAltitude(
+      latitude: position.latitude,
+      longitude: position.longitude,
+      rawAltitudeMeters: rawAltitude,
+    );
     final point = TrackPoint(
       timestamp: position.timestamp,
       latitude: position.latitude,
       longitude: position.longitude,
-      altitudeMeters: position.altitude,
+      altitudeMeters:
+          elevationCorrection?.correctedAltitudeMeters ?? rawAltitude,
       accuracyMeters: position.accuracy,
       speedMps: position.speed,
       bearingDegrees: position.heading,
@@ -597,7 +636,10 @@ class ActivityRecorderService {
         timestamp: point.timestamp,
         latitude: point.latitude,
         longitude: point.longitude,
-        altitudeMeters: Value(point.altitudeMeters),
+        altitudeMeters: Value(rawAltitude),
+        altitudeCorrectedMeters: Value(
+          elevationCorrection?.correctedAltitudeMeters,
+        ),
         accuracyMeters: Value(point.accuracyMeters),
         speedMps: Value(point.speedMps),
         bearingDegrees: Value(point.bearingDegrees),
@@ -605,10 +647,14 @@ class ActivityRecorderService {
         moving: Value(status == 'recording'),
         pointQuality: Value(_pointQuality(point, mode)),
         provider: const Value('fused'),
-        metadata:
-            _manualPaused
-                ? Value(jsonEncode({'activity_recognition': 'MANUAL_PAUSED'}))
-                : const Value.absent(),
+        metadata: Value(
+          jsonEncode(
+            _pointMetadata(
+              activityRecognition: _manualPaused ? 'MANUAL_PAUSED' : null,
+              elevationCorrection: elevationCorrection,
+            ),
+          ),
+        ),
       ),
     );
     await db.updateActivitySession(
@@ -626,6 +672,7 @@ class ActivityRecorderService {
       ),
     );
     final session = await db.activeActivitySession().getSingleOrNull();
+    await _updateForegroundService(session);
     _controller.add(
       ActivityRecorderSnapshot(
         session: session,
@@ -650,6 +697,45 @@ class ActivityRecorderService {
         permission == LocationPermission.deniedForever) {
       throw StateError('Location permission denied');
     }
+    await _requestNotificationPermission();
+  }
+
+  double? _usableAltitude(Position position) {
+    if (!position.altitude.isFinite) return null;
+    final verticalAccuracy = position.altitudeAccuracy;
+    if (verticalAccuracy.isFinite && verticalAccuracy > 75) return null;
+    return position.altitude;
+  }
+
+  Future<void> _requestNotificationPermission() async {
+    if (defaultTargetPlatform != TargetPlatform.android) return;
+    final status = await Permission.notification.status;
+    if (status.isDenied || status.isRestricted || status.isLimited) {
+      await Permission.notification.request();
+    }
+  }
+
+  Future<void> _startForegroundService(ActivitySession session) async {
+    await _requestNotificationPermission();
+    await foregroundService.start(
+      sessionLocalId: session.localId,
+      sportName: session.sportName,
+      requiresGps: session.requiresGps,
+    );
+    await _updateForegroundService(session);
+  }
+
+  Future<void> _updateForegroundService(ActivitySession? session) async {
+    if (session == null) return;
+    final mode = sportModeByKey(session.sportKey);
+    final stats = _calculateStats(mode, session.manualPausedSeconds);
+    await foregroundService.update(
+      sportName: session.sportName,
+      status: session.status == 'paused' ? 'Paused' : 'Recording',
+      elapsedSeconds: stats.elapsedSeconds,
+      movingSeconds: stats.movingSeconds,
+      distanceMeters: stats.distanceMeters,
+    );
   }
 
   ActivityRecorderSnapshot _snapshot(ActivitySession? session) {
@@ -672,12 +758,31 @@ class ActivityRecorderService {
       timestamp: point.timestamp,
       latitude: point.latitude,
       longitude: point.longitude,
-      altitudeMeters: point.altitudeMeters,
+      altitudeMeters: point.altitudeCorrectedMeters ?? point.altitudeMeters,
       accuracyMeters: point.accuracyMeters,
       speedMps: point.speedMps,
       bearingDegrees: point.bearingDegrees,
       activityRecognition: metadata['activity_recognition']?.toString(),
     );
+  }
+
+  Map<String, dynamic> _pointMetadata({
+    String? activityRecognition,
+    GeoidCorrectionResult? elevationCorrection,
+  }) {
+    final metadata = <String, dynamic>{};
+    if (activityRecognition != null) {
+      metadata['activity_recognition'] = activityRecognition;
+    }
+    if (elevationCorrection != null) {
+      metadata['elevation'] = elevationCorrection.toMetadata();
+    } else {
+      metadata['elevation'] = {
+        'status': 'altitude_sensor_not_found',
+        'note': 'No finite GPS altitude was available for this point.',
+      };
+    }
+    return metadata;
   }
 
   String _pointQuality(TrackPoint point, SportMode mode) {

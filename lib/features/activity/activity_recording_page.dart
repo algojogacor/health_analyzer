@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -6,6 +8,7 @@ import '../../models/sport_mode.dart';
 import '../../providers/health_provider.dart';
 import '../../services/activity_recorder_service.dart';
 import '../../services/moving_time_service.dart';
+import '../../services/voice_coach_service.dart';
 import 'activity_save_page.dart';
 import 'widgets/recording_map_controls.dart';
 import 'widgets/recording_stat_sheet.dart';
@@ -25,6 +28,7 @@ class _ActivityRecordingPageState extends ConsumerState<ActivityRecordingPage> {
   RouteMapStyle _style = RouteMapStyle.street;
   bool _busy = false;
   bool _followCurrentLocation = true;
+  Timer? _autoRecenterTimer;
   final _mapController = MapController();
 
   @override
@@ -38,6 +42,7 @@ class _ActivityRecordingPageState extends ConsumerState<ActivityRecordingPage> {
 
   @override
   void dispose() {
+    _autoRecenterTimer?.cancel();
     _mapController.dispose();
     super.dispose();
   }
@@ -45,6 +50,21 @@ class _ActivityRecordingPageState extends ConsumerState<ActivityRecordingPage> {
   @override
   Widget build(BuildContext context) {
     final snapshot = ref.watch(activityRecorderSnapshotProvider);
+    final targetRoute = ref.watch(routeTargetProvider).valueOrNull;
+    final targetGeometry =
+        targetRoute == null
+            ? null
+            : ref.read(savedRouteServiceProvider).geometryFor(targetRoute);
+    final targetRoutePoints =
+        targetGeometry?.points
+            .map(
+              (point) => RouteMapPoint(
+                latitude: point.latitude,
+                longitude: point.longitude,
+              ),
+            )
+            .toList(growable: false) ??
+        const <RouteMapPoint>[];
 
     return Scaffold(
       extendBodyBehindAppBar: true,
@@ -57,11 +77,14 @@ class _ActivityRecordingPageState extends ConsumerState<ActivityRecordingPage> {
               followCurrentLocation: _followCurrentLocation,
               busy: _busy,
               snapshot: value,
+              targetRoutePoints: targetRoutePoints,
               onBack: () => Navigator.of(context).maybePop(),
               onStyleChanged: (style) => setState(() => _style = style),
               onRecenter: () {
+                _autoRecenterTimer?.cancel();
                 setState(() => _followCurrentLocation = true);
               },
+              onUserMapInteraction: _handleUserMapInteraction,
               onPause: _pause,
               onResume: _resume,
               onLap: _lap,
@@ -80,24 +103,50 @@ class _ActivityRecordingPageState extends ConsumerState<ActivityRecordingPage> {
   Future<void> _pause() async {
     if (_busy) return;
     setState(() => _busy = true);
-    await ref.read(activityRecorderProvider).pause();
+    final snapshot = await ref.read(activityRecorderProvider).pause();
+    unawaited(
+      ref
+          .read(voiceCoachServiceProvider)
+          .announce(VoiceCoachEvent.pause, stats: snapshot.stats),
+    );
     if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _resume() async {
     if (_busy) return;
     setState(() => _busy = true);
-    await ref.read(activityRecorderProvider).resume();
+    final snapshot = await ref.read(activityRecorderProvider).resume();
+    unawaited(
+      ref
+          .read(voiceCoachServiceProvider)
+          .announce(VoiceCoachEvent.resume, stats: snapshot.stats),
+    );
     if (mounted) setState(() => _busy = false);
   }
 
   Future<void> _lap() async {
     if (_busy) return;
-    await ref.read(activityRecorderProvider).addLapMarker();
+    final snapshot = await ref.read(activityRecorderProvider).addLapMarker();
+    unawaited(
+      ref
+          .read(voiceCoachServiceProvider)
+          .announce(VoiceCoachEvent.lap, stats: snapshot.stats),
+    );
     if (!mounted) return;
     ScaffoldMessenger.of(
       context,
     ).showSnackBar(const SnackBar(content: Text('Lap marker added')));
+  }
+
+  void _handleUserMapInteraction() {
+    _autoRecenterTimer?.cancel();
+    if (_followCurrentLocation && mounted) {
+      setState(() => _followCurrentLocation = false);
+    }
+    _autoRecenterTimer = Timer(const Duration(seconds: 10), () {
+      if (!mounted) return;
+      setState(() => _followCurrentLocation = true);
+    });
   }
 
   Future<void> _showStopSheet() async {
@@ -155,6 +204,11 @@ class _ActivityRecordingPageState extends ConsumerState<ActivityRecordingPage> {
     if (_busy) return;
     setState(() => _busy = true);
     final snapshot = await ref.read(activityRecorderProvider).finishForReview();
+    unawaited(
+      ref
+          .read(voiceCoachServiceProvider)
+          .announce(VoiceCoachEvent.finish, stats: snapshot.stats),
+    );
     ref.invalidate(activityRecorderSnapshotProvider);
     ref.invalidate(activityHistoryProvider);
 
@@ -192,9 +246,11 @@ class _RecordingContent extends StatelessWidget {
   final bool followCurrentLocation;
   final bool busy;
   final ActivityRecorderSnapshot snapshot;
+  final List<RouteMapPoint> targetRoutePoints;
   final VoidCallback onBack;
   final ValueChanged<RouteMapStyle> onStyleChanged;
   final VoidCallback onRecenter;
+  final VoidCallback onUserMapInteraction;
   final Future<void> Function() onPause;
   final Future<void> Function() onResume;
   final Future<void> Function() onLap;
@@ -207,9 +263,11 @@ class _RecordingContent extends StatelessWidget {
     required this.followCurrentLocation,
     required this.busy,
     required this.snapshot,
+    required this.targetRoutePoints,
     required this.onBack,
     required this.onStyleChanged,
     required this.onRecenter,
+    required this.onUserMapInteraction,
     required this.onPause,
     required this.onResume,
     required this.onLap,
@@ -221,6 +279,10 @@ class _RecordingContent extends StatelessWidget {
     final stats = snapshot.stats;
     final points = snapshot.routePoints;
     final routePoints = _routePoints(points);
+    final displayPoints =
+        routePoints.isEmpty && targetRoutePoints.isNotEmpty
+            ? targetRoutePoints
+            : routePoints;
 
     return Stack(
       children: [
@@ -229,12 +291,15 @@ class _RecordingContent extends StatelessWidget {
               mode.requiresGps
                   ? RouteMap(
                     controller: mapController,
-                    points: routePoints,
+                    points: displayPoints,
+                    targetPoints:
+                        routePoints.isEmpty ? const [] : targetRoutePoints,
                     style: style,
                     height: double.infinity,
                     showAccuracy: true,
                     followCurrentLocation: followCurrentLocation,
                     followZoom: routePoints.length <= 1 ? 17 : null,
+                    onUserInteraction: onUserMapInteraction,
                     borderRadius: 0,
                     emptyLabel:
                         'Acquiring GPS. Keep location enabled and stay in an open area.',

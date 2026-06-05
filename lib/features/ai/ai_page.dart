@@ -19,15 +19,17 @@ class AiPage extends ConsumerStatefulWidget {
 
 class _AiPageState extends ConsumerState<AiPage> {
   final _inputController = TextEditingController();
-  final _messages = <_ChatMessage>[
-    const _ChatMessage(
-      role: 'assistant',
-      content:
-          'Hi, I can explain your health/activity summaries, data gaps, recovery, and privacy status.',
-    ),
-  ];
+  final _messages = <_ChatMessage>[];
+  String? _conversationId;
   String _contextMode = 'daily';
+  bool _loadingHistory = true;
   bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.microtask(_loadConversation);
+  }
 
   @override
   void dispose() {
@@ -35,9 +37,44 @@ class _AiPageState extends ConsumerState<AiPage> {
     super.dispose();
   }
 
+  Future<void> _loadConversation() async {
+    try {
+      final memory = await ref
+          .read(aiConversationServiceProvider)
+          .loadOrCreateActive(contextMode: _contextMode);
+      if (!mounted) return;
+      setState(() {
+        _conversationId = memory.conversation.localId;
+        _contextMode = memory.conversation.contextMode;
+        _messages
+          ..clear()
+          ..addAll(
+            memory.messages.map(
+              (message) =>
+                  _ChatMessage(role: message.role, content: message.content),
+            ),
+          );
+        _loadingHistory = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _messages
+          ..clear()
+          ..add(
+            _ChatMessage(
+              role: 'assistant',
+              content: 'AI conversation history unavailable: $error',
+            ),
+          );
+        _loadingHistory = false;
+      });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final settings = ref.watch(deepSeekSettingsProvider);
+    final settings = ref.watch(llmSettingsProvider);
     final coverage = ref.watch(coverageSummaryProvider);
     final activityHistory = ref.watch(activityHistoryProvider);
     final insights = ref.watch(trainingInsightsProvider);
@@ -54,14 +91,15 @@ class _AiPageState extends ConsumerState<AiPage> {
                         ? _CoachCards(
                           recordCount: coverage.valueOrNull?.recordCount ?? 0,
                           confidence: coverage.valueOrNull?.confidence ?? '--',
+                          provider: value.providerLabel,
                           model: value.model,
                           insights: insights.valueOrNull,
                         )
                         : InfoPanel(
                           icon: Icons.key_outlined,
-                          title: 'DeepSeek is not configured',
+                          title: 'Cloud AI is not configured',
                           body:
-                              'Add your API key to enable AI chat. Local summaries and privacy tools are still available.',
+                              'Add your own OpenAI-compatible key to enable cloud chat. Local summaries and privacy tools are still available.',
                           action: TextButton.icon(
                             onPressed:
                                 () => Navigator.of(context).push(
@@ -87,12 +125,13 @@ class _AiPageState extends ConsumerState<AiPage> {
           index: 1,
           child: _ContextPicker(
             selected: _contextMode,
-            busy: _busy,
+            busy: _busy || _loadingHistory,
             onChanged: (value) => setState(() => _contextMode = value),
             onPrompt: _usePrompt,
           ),
         ),
         const SizedBox(height: 16),
+        if (_loadingHistory) const LinearProgressIndicator(),
         ..._messages.asMap().entries.map(
           (entry) => AnimatedSection(
             index: entry.key + 2,
@@ -117,7 +156,7 @@ class _AiPageState extends ConsumerState<AiPage> {
             const SizedBox(width: 10),
             FilledButton(
               onPressed:
-                  _busy
+                  _busy || _loadingHistory
                       ? null
                       : () => _send(
                         activityHistory.valueOrNull ??
@@ -141,6 +180,8 @@ class _AiPageState extends ConsumerState<AiPage> {
   Future<void> _send(List<ActivitySession> activities) async {
     final prompt = _inputController.text.trim();
     if (prompt.isEmpty) return;
+    final conversationId = _conversationId;
+    if (conversationId == null) return;
     setState(() {
       _busy = true;
       _messages.add(_ChatMessage(role: 'user', content: prompt));
@@ -148,23 +189,50 @@ class _AiPageState extends ConsumerState<AiPage> {
     });
 
     try {
+      await ref
+          .read(aiConversationServiceProvider)
+          .appendMessage(
+            conversationId,
+            role: 'user',
+            content: prompt,
+            mode: _contextMode,
+          );
       final response = await ref
           .read(aiAgentServiceProvider)
           .respond(
             prompt: prompt,
             contextMode: _contextMode,
             latestActivity: activities.isEmpty ? null : activities.first,
+            conversationId: conversationId,
+            conversationContext: _conversationContext(),
+          );
+      final assistantContent =
+          '${response.content}\n\nMode: ${response.mode}, tools: ${response.toolCallsUsed}';
+      await ref
+          .read(aiConversationServiceProvider)
+          .appendMessage(
+            conversationId,
+            role: 'assistant',
+            content: assistantContent,
+            mode: response.mode,
+            toolCallsUsed: response.toolCallsUsed,
+            error: response.error,
           );
       setState(
         () => _messages.add(
-          _ChatMessage(
-            role: 'assistant',
-            content:
-                '${response.content}\n\nMode: ${response.mode}, tools: ${response.toolCallsUsed}',
-          ),
+          _ChatMessage(role: 'assistant', content: assistantContent),
         ),
       );
     } catch (error) {
+      await ref
+          .read(aiConversationServiceProvider)
+          .appendMessage(
+            conversationId,
+            role: 'assistant',
+            content: 'AI unavailable: $error',
+            mode: 'error',
+            error: error.toString(),
+          );
       setState(
         () => _messages.add(
           _ChatMessage(role: 'assistant', content: 'AI unavailable: $error'),
@@ -182,17 +250,29 @@ class _AiPageState extends ConsumerState<AiPage> {
       _inputController.text = prompt;
     });
   }
+
+  String _conversationContext() {
+    return _messages
+        .take(12)
+        .map((message) {
+          final role = message.role == 'user' ? 'User' : 'Assistant';
+          return '$role: ${message.content}';
+        })
+        .join('\n');
+  }
 }
 
 class _CoachCards extends StatelessWidget {
   final int recordCount;
   final String confidence;
+  final String provider;
   final String model;
   final TrainingInsightSummary? insights;
 
   const _CoachCards({
     required this.recordCount,
     required this.confidence,
+    required this.provider,
     required this.model,
     required this.insights,
   });
@@ -212,7 +292,7 @@ class _CoachCards extends StatelessWidget {
         _CoachCard(
           icon: Icons.auto_awesome,
           title: 'AI Summary',
-          body: '$model ready',
+          body: '$provider / $model',
           color: AppTheme.violet,
         ),
         _CoachCard(
@@ -363,13 +443,18 @@ class _PromptChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final labelColor = dark ? AppTheme.darkInk : AppTheme.ink;
+    final background = dark ? AppTheme.darkSurface : AppTheme.canvas;
+    final border = dark ? AppTheme.darkLine : AppTheme.line;
     return ActionChip(
       onPressed: onTap,
       avatar: const Icon(Icons.auto_awesome, size: 16),
       label: Text(label),
-      backgroundColor: AppTheme.canvas,
-      side: const BorderSide(color: AppTheme.line),
-      labelStyle: const TextStyle(fontWeight: FontWeight.w800),
+      backgroundColor: background,
+      side: BorderSide(color: border),
+      labelStyle: TextStyle(color: labelColor, fontWeight: FontWeight.w800),
     );
   }
 }
@@ -382,6 +467,21 @@ class _MessageBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isUser = message.role == 'user';
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
+    final background =
+        isUser
+            ? AppTheme.cyan.withValues(alpha: dark ? 0.22 : 0.10)
+            : dark
+            ? AppTheme.darkSurface
+            : Colors.white;
+    final border =
+        isUser
+            ? AppTheme.cyan.withValues(alpha: dark ? 0.44 : 0.24)
+            : dark
+            ? AppTheme.darkLine
+            : AppTheme.line;
+    final textColor = dark ? AppTheme.darkInk : AppTheme.ink;
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
       child: Container(
@@ -389,14 +489,11 @@ class _MessageBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 520),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? AppTheme.cyan.withValues(alpha: 0.10) : Colors.white,
+          color: background,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(
-            color:
-                isUser ? AppTheme.cyan.withValues(alpha: 0.24) : AppTheme.line,
-          ),
+          border: Border.all(color: border),
         ),
-        child: Text(message.content),
+        child: Text(message.content, style: TextStyle(color: textColor)),
       ),
     );
   }

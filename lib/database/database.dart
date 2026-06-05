@@ -11,7 +11,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
   @override
-  int get schemaVersion => 8;
+  int get schemaVersion => 12;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -191,6 +191,118 @@ class AppDatabase extends _$AppDatabase {
           'CREATE INDEX IF NOT EXISTS idx_ai_usage_windows_tier_started ON ai_usage_windows(tier, started_at)',
         );
       }
+      if (from < 9) {
+        await customStatement('''
+          CREATE TABLE IF NOT EXISTS personal_records (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            local_id TEXT NOT NULL UNIQUE,
+            sport_key TEXT NOT NULL,
+            record_key TEXT NOT NULL,
+            label TEXT NOT NULL,
+            metric TEXT NOT NULL,
+            value REAL NOT NULL,
+            unit TEXT NOT NULL,
+            session_local_id TEXT NOT NULL,
+            achieved_at DATETIME NOT NULL,
+            created_at DATETIME NOT NULL DEFAULT (strftime('%s', 'now')),
+            updated_at DATETIME,
+            UNIQUE(sport_key, record_key)
+          )
+        ''');
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_personal_records_sport ON personal_records(sport_key, record_key)',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_personal_records_session ON personal_records(session_local_id)',
+        );
+      }
+      if (from < 10) {
+        await customStatement('''
+          CREATE TABLE IF NOT EXISTS ai_conversations (
+            local_id TEXT NOT NULL PRIMARY KEY,
+            title TEXT NOT NULL,
+            summary TEXT,
+            context_mode TEXT NOT NULL DEFAULT 'daily',
+            message_count INTEGER NOT NULL DEFAULT 0,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            compacted_at DATETIME
+          )
+        ''');
+        await customStatement('''
+          CREATE TABLE IF NOT EXISTS ai_messages (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            local_id TEXT NOT NULL UNIQUE,
+            conversation_id TEXT NOT NULL,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            mode TEXT,
+            tool_calls_used INTEGER NOT NULL DEFAULT 0,
+            error TEXT,
+            created_at DATETIME NOT NULL
+          )
+        ''');
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_ai_conversations_updated ON ai_conversations(updated_at)',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_ai_messages_conversation_time ON ai_messages(conversation_id, created_at)',
+        );
+      }
+      if (from < 11) {
+        if (from >= 3) {
+          await _addColumnIfMissing(
+            'activity_sessions',
+            'tags',
+            "ALTER TABLE activity_sessions ADD COLUMN tags TEXT NOT NULL DEFAULT ''",
+          );
+        }
+      }
+      if (from < 12) {
+        await customStatement('''
+          CREATE TABLE IF NOT EXISTS training_plans (
+            local_id TEXT NOT NULL PRIMARY KEY,
+            plan_key TEXT NOT NULL,
+            title TEXT NOT NULL,
+            sport_key TEXT NOT NULL,
+            level TEXT NOT NULL,
+            start_date DATETIME NOT NULL,
+            weeks INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'active',
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME NOT NULL,
+            completed_at DATETIME
+          )
+        ''');
+        await customStatement('''
+          CREATE TABLE IF NOT EXISTS training_plan_workouts (
+            id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+            local_id TEXT NOT NULL UNIQUE,
+            plan_local_id TEXT NOT NULL,
+            week_index INTEGER NOT NULL,
+            day_index INTEGER NOT NULL,
+            scheduled_date DATETIME NOT NULL,
+            title TEXT NOT NULL,
+            workout_type TEXT NOT NULL,
+            target_duration_minutes INTEGER NOT NULL DEFAULT 0,
+            target_distance_meters REAL NOT NULL DEFAULT 0,
+            intensity TEXT NOT NULL DEFAULT 'easy',
+            status TEXT NOT NULL DEFAULT 'planned',
+            notes TEXT,
+            created_at DATETIME NOT NULL,
+            updated_at DATETIME
+          )
+        ''');
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_training_plans_status ON training_plans(status, start_date)',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_training_plan_workouts_plan ON training_plan_workouts(plan_local_id, scheduled_date)',
+        );
+        await customStatement(
+          'CREATE INDEX IF NOT EXISTS idx_training_plan_workouts_date ON training_plan_workouts(scheduled_date, status)',
+        );
+      }
     },
   );
 
@@ -306,6 +418,13 @@ class AppDatabase extends _$AppDatabase {
 
   Future<int> insertActivityEvent(ActivityEventsCompanion event) {
     return into(activityEvents).insert(event);
+  }
+
+  Future<List<ActivityEvent>> getActivityEvents(String sessionLocalId) {
+    return (select(activityEvents)
+          ..where((tbl) => tbl.sessionLocalId.equals(sessionLocalId))
+          ..orderBy([(tbl) => OrderingTerm.asc(tbl.timestamp)]))
+        .get();
   }
 
   Future<void> updateActivitySession(
@@ -428,6 +547,29 @@ class AppDatabase extends _$AppDatabase {
     return latestAiUsageWindowForTier(tier).getSingleOrNull();
   }
 
+  Future<int> upsertAiConversation(AiConversationsCompanion conversation) {
+    return into(aiConversations).insertOnConflictUpdate(conversation);
+  }
+
+  Future<List<AiConversation>> getRecentAiConversations({int limit = 20}) {
+    return aiConversationsRecent(limit).get();
+  }
+
+  Future<AiConversation?> getAiConversation(String localId) {
+    return aiConversationById(localId).getSingleOrNull();
+  }
+
+  Future<int> insertAiMessage(AiMessagesCompanion message) {
+    return into(aiMessages).insert(message);
+  }
+
+  Future<List<AiMessage>> getAiMessagesForConversation(
+    String conversationId, {
+    int limit = 80,
+  }) {
+    return aiMessagesForConversation(conversationId, limit).get();
+  }
+
   Future<int> upsertCommunityShare(CommunityShareRecordsCompanion share) {
     return into(communityShareRecords).insertOnConflictUpdate(share);
   }
@@ -444,6 +586,63 @@ class AppDatabase extends _$AppDatabase {
 
   Future<List<ChallengeInvite>> getRecentChallengeInvites({int limit = 20}) {
     return challengeInvitesRecent(limit).get();
+  }
+
+  Future<void> clearPersonalRecords() {
+    return delete(personalRecords).go();
+  }
+
+  Future<int> upsertPersonalRecord(PersonalRecordsCompanion record) {
+    return into(personalRecords).insertOnConflictUpdate(record);
+  }
+
+  Future<List<PersonalRecord>> getRecentPersonalRecords({int limit = 20}) {
+    return personalRecordsRecent(limit).get();
+  }
+
+  Future<List<PersonalRecord>> getPersonalRecordsForSession(
+    String sessionLocalId,
+  ) {
+    return personalRecordsForSession(sessionLocalId).get();
+  }
+
+  Future<int> upsertTrainingPlan(TrainingPlansCompanion plan) {
+    return into(trainingPlans).insertOnConflictUpdate(plan);
+  }
+
+  Future<int> upsertTrainingPlanWorkout(TrainingPlanWorkoutsCompanion workout) {
+    return into(trainingPlanWorkouts).insertOnConflictUpdate(workout);
+  }
+
+  Future<TrainingPlan?> getActiveTrainingPlan() {
+    return activeTrainingPlan().getSingleOrNull();
+  }
+
+  Future<TrainingPlan?> getTrainingPlan(String localId) {
+    return trainingPlanByLocalId(localId).getSingleOrNull();
+  }
+
+  Future<List<TrainingPlanWorkout>> getTrainingPlanWorkouts(
+    String planLocalId,
+  ) {
+    return trainingPlanWorkoutsForPlan(planLocalId).get();
+  }
+
+  Future<List<TrainingPlanWorkout>> getTrainingPlanWorkoutsBetween(
+    DateTime start,
+    DateTime end,
+  ) {
+    return trainingPlanWorkoutsBetween(start, end).get();
+  }
+
+  Future<void> deactivateActiveTrainingPlans() async {
+    await (update(trainingPlans)
+      ..where((tbl) => tbl.status.equals('active'))).write(
+      TrainingPlansCompanion(
+        status: const Value('archived'),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
   }
 }
 

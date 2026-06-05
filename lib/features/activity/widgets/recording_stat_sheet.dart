@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../../services/activity_recorder_service.dart';
+import '../../../services/moving_time_service.dart';
 import '../../../shared/utils/formatters.dart';
 
 class RecordingStatSheet extends StatelessWidget {
@@ -27,10 +28,12 @@ class RecordingStatSheet extends StatelessWidget {
     final isPaused = snapshot.session?.status == 'paused';
     final distanceKm = (stats?.distanceMeters ?? 0) / 1000;
     final avgSpeed = stats?.avgSpeedMps;
-    final pace = _paceText(
+    final currentSpeed = _currentSpeedMps(snapshot.routePoints);
+    final avgPace = _paceText(
       stats?.distanceMeters ?? 0,
       stats?.movingSeconds ?? 0,
     );
+    final currentPace = _paceFromSpeed(currentSpeed);
 
     return SafeArea(
       top: false,
@@ -97,9 +100,17 @@ class RecordingStatSheet extends StatelessWidget {
                       label: 'Elapsed',
                       value: fmtDuration(stats?.elapsedSeconds ?? 0),
                     ),
-                    _CompactStat(label: 'Pace', value: pace),
+                    _CompactStat(label: 'Current pace', value: currentPace),
+                    _CompactStat(label: 'Avg pace', value: avgPace),
                     _CompactStat(
-                      label: 'Speed',
+                      label: 'Current speed',
+                      value:
+                          currentSpeed == null
+                              ? '--'
+                              : '${(currentSpeed * 3.6).toStringAsFixed(1)} km/h',
+                    ),
+                    _CompactStat(
+                      label: 'Avg speed',
                       value:
                           avgSpeed == null
                               ? '--'
@@ -174,6 +185,26 @@ class RecordingStatSheet extends StatelessWidget {
   String _paceText(double distanceMeters, int movingSeconds) {
     if (distanceMeters <= 0 || movingSeconds <= 0) return '--';
     final secondsPerKm = movingSeconds / (distanceMeters / 1000);
+    final minutes = secondsPerKm ~/ 60;
+    final seconds = (secondsPerKm % 60).round().toString().padLeft(2, '0');
+    return '$minutes:$seconds /km';
+  }
+
+  double? _currentSpeedMps(List<TrackPoint> points) {
+    final speeds =
+        points.reversed
+            .take(5)
+            .map((point) => point.speedMps)
+            .whereType<double>()
+            .where((speed) => speed.isFinite && speed >= 0 && speed < 12)
+            .toList();
+    if (speeds.isEmpty) return null;
+    return speeds.reduce((a, b) => a + b) / speeds.length;
+  }
+
+  String _paceFromSpeed(double? speedMps) {
+    if (speedMps == null || speedMps <= 0.1) return '--';
+    final secondsPerKm = 1000 / speedMps;
     final minutes = secondsPerKm ~/ 60;
     final seconds = (secondsPerKm % 60).round().toString().padLeft(2, '0');
     return '$minutes:$seconds /km';

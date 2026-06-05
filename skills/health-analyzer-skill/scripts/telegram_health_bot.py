@@ -23,23 +23,31 @@ from typing import Any
 WIB = timezone(timedelta(hours=7))
 HOME = Path.home()
 HERMES_ENV = HOME / ".hermes" / ".env"
-SKILL_DIR = HOME / ".hermes" / "skills" / "health-analyzer-skill"
+AGENT_ENV = HOME / ".health-analyzer-agent" / ".env"
+SKILL_DIR = Path(
+    os.environ.get(
+        "HEALTH_ANALYZER_SKILL_DIR",
+        str(HOME / ".hermes" / "skills" / "health-analyzer-skill"),
+    )
+).expanduser()
 SUMMARY_SCRIPT = SKILL_DIR / "scripts" / "generate_daily_summary.py"
-OUT_DIR = HOME / "health"
+OUT_DIR = Path(os.environ.get("SUMMARY_OUTPUT_DIR", str(HOME / "health"))).expanduser()
 
 
-def load_dotenv(path: Path = HERMES_ENV) -> None:
-    if not path.exists():
-        return
-    for raw in path.read_text(encoding="utf-8", errors="replace").splitlines():
-        line = raw.strip()
-        if not line or line.startswith("#") or "=" not in line:
+def load_dotenv(path: Path | None = None) -> None:
+    candidates = [path] if path is not None else [AGENT_ENV, HERMES_ENV]
+    for candidate in candidates:
+        if candidate is None or not candidate.exists():
             continue
-        key, value = line.split("=", 1)
-        key = key.strip()
-        value = value.strip().strip("'\"")
-        if key and key not in os.environ:
-            os.environ[key] = value
+        for raw in candidate.read_text(encoding="utf-8", errors="replace").splitlines():
+            line = raw.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            key = key.strip()
+            value = value.strip().strip("'\"")
+            if key and key not in os.environ:
+                os.environ[key] = value
 
 
 def api_json(url: str, payload: dict[str, Any] | None = None, timeout: int = 60) -> dict[str, Any]:
@@ -73,7 +81,11 @@ def set_commands() -> None:
 
 
 def allowed(user_id: int | None, chat_id: int | None) -> bool:
-    raw = os.environ.get("TELEGRAM_ALLOWED_USERS", "").strip()
+    raw = (
+        os.environ.get("TELEGRAM_ALLOWED_USER_IDS")
+        or os.environ.get("TELEGRAM_ALLOWED_USERS")
+        or ""
+    ).strip()
     if raw in {"*", "all"}:
         return True
     allowed_ids = {x.strip() for x in raw.split(",") if x.strip()}
@@ -96,9 +108,19 @@ def target_date_from_text(text: str) -> str:
 
 def generate_summary(day: str) -> tuple[Path, str]:
     env = os.environ.copy()
+    skill_dir = Path(
+        os.environ.get("HEALTH_ANALYZER_SKILL_DIR", str(SKILL_DIR))
+    ).expanduser()
+    summary_script = Path(
+        os.environ.get(
+            "HEALTH_ANALYZER_SUMMARY_SCRIPT",
+            str(skill_dir / "scripts" / "generate_daily_summary.py"),
+        )
+    ).expanduser()
+    out_dir = Path(os.environ.get("SUMMARY_OUTPUT_DIR", str(OUT_DIR))).expanduser()
     print(f"generating summary for {day}", flush=True)
     result = subprocess.run(
-        [sys.executable, str(SUMMARY_SCRIPT), "--date", day, "--out-dir", str(OUT_DIR)],
+        [sys.executable, str(summary_script), "--date", day, "--out-dir", str(out_dir)],
         env=env,
         text=True,
         stdout=subprocess.PIPE,
@@ -108,7 +130,7 @@ def generate_summary(day: str) -> tuple[Path, str]:
     )
     if result.returncode != 0:
         raise RuntimeError(result.stderr.strip() or result.stdout.strip())
-    md_path = OUT_DIR / f"health-summary-{day}.md"
+    md_path = out_dir / f"health-summary-{day}.md"
     if not md_path.exists():
         raise RuntimeError(f"Summary file not found: {md_path}")
     print(f"summary ready {md_path}", flush=True)
@@ -116,16 +138,25 @@ def generate_summary(day: str) -> tuple[Path, str]:
 
 
 def deepseek_reply(user_text: str, summary_md: str) -> str:
-    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    api_key = os.environ.get("LLM_API_KEY") or os.environ.get("DEEPSEEK_API_KEY")
     if not api_key:
         return (
-            "Summary ready, tapi DEEPSEEK_API_KEY belum ada di environment bot. "
+            "Summary ready, tapi LLM_API_KEY belum ada di environment bot. "
             "Aku belum bisa bikin respons AI."
         )
-    base_url = os.environ.get("DEEPSEEK_BASE_URL", "https://api.deepseek.com").rstrip("/")
+    base_url = (
+        os.environ.get("LLM_BASE_URL")
+        or os.environ.get("DEEPSEEK_BASE_URL")
+        or "https://api.deepseek.com"
+    ).rstrip("/")
     if not base_url.endswith("/v1"):
         base_url = base_url + "/v1"
-    model = os.environ.get("HEALTH_BOT_MODEL") or os.environ.get("DEEPSEEK_MODEL") or "deepseek-chat"
+    model = (
+        os.environ.get("LLM_MODEL")
+        or os.environ.get("HEALTH_BOT_MODEL")
+        or os.environ.get("DEEPSEEK_MODEL")
+        or "deepseek-chat"
+    )
     payload = {
         "model": model,
         "messages": [

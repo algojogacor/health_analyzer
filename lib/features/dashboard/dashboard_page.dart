@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:drift/drift.dart' show Value;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:health/health.dart';
@@ -8,7 +11,9 @@ import '../../database/database.dart';
 import '../../models/sport_mode.dart';
 import '../../providers/health_provider.dart';
 import '../../services/activity_sync_mapper.dart';
+import '../../services/android_widget_service.dart';
 import '../../services/background_service.dart';
+import '../../services/training_goal_service.dart';
 import '../../services/training_insights_service.dart';
 import '../../services/turso_service.dart';
 import '../../shared/theme/app_theme.dart';
@@ -44,6 +49,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   String _status = 'Ready';
   int _selectedIndex = 0;
   SportMode _selectedSportMode = sportModeByKey('walking');
+  String? _lastWidgetSignature;
 
   @override
   Widget build(BuildContext context) {
@@ -55,7 +61,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     final dashboardPreferences = ref.watch(dashboardWidgetPreferencesProvider);
     final dashboardTrends = ref.watch(dashboardMetricTrendsProvider);
     final trainingInsights = ref.watch(trainingInsightsProvider);
+    final trainingGoals = ref.watch(trainingGoalsProvider);
     final activityHistory = ref.watch(activityHistoryProvider);
+    _maybeUpdateAndroidWidget(
+      coverage.valueOrNull,
+      trainingInsights.valueOrNull,
+    );
     final preferences =
         dashboardPreferences.valueOrNull ??
         DashboardWidgetPreferences(
@@ -79,6 +90,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         activeSession: recorderSnapshot.valueOrNull?.session,
         preferences: preferences,
         trends: dashboardTrends.valueOrNull,
+        goals: trainingGoals.valueOrNull ?? TrainingGoals.defaults,
         insightSummary: trainingInsights.valueOrNull,
         recentActivity: recentActivity,
         onMetricTap: _openMetricDetail,
@@ -207,6 +219,33 @@ class _HomePageState extends ConsumerState<HomePage> {
             (_) => MetricDetailPage(spec: metricDetailSpecByKey(metricKey)),
       ),
     );
+  }
+
+  void _maybeUpdateAndroidWidget(
+    HealthCoverageSummary? coverage,
+    TrainingInsightSummary? insights,
+  ) {
+    if (coverage == null || insights == null) return;
+    final now = DateTime.now();
+    final steps =
+        coverage.wearableSteps > 0
+            ? coverage.wearableSteps
+            : coverage.totalStepsIfMixed;
+    final snapshot = AndroidWidgetSnapshot(
+      steps: steps,
+      readinessScore: insights.readinessScore,
+      readinessLabel: insights.readinessLabel,
+      updatedAt: now,
+    );
+    if (_lastWidgetSignature == snapshot.signature) return;
+    _lastWidgetSignature = snapshot.signature;
+    Future.microtask(() async {
+      try {
+        await ref.read(androidWidgetServiceProvider).updateHomeWidget(snapshot);
+      } catch (_) {
+        // Widget updates are best-effort and should never disturb the app.
+      }
+    });
   }
 
   void _openActivityDetail(ActivitySession session) {
@@ -423,6 +462,27 @@ class _HomePageState extends ConsumerState<HomePage> {
       );
       ref.invalidate(unsyncedCountProvider);
       ref.invalidate(coverageSummaryProvider);
+      await ref
+          .read(proactiveInsightServiceProvider)
+          .maybeNotifyAfterSync(
+            insertedCount: 0,
+            syncedCount: unsynced.length + pendingActivities.length,
+            message:
+                'Synced ${unsynced.length} records and ${pendingActivities.length} activities',
+          );
+      unawaited(
+        ref
+            .read(webhookServiceProvider)
+            .sendSyncCompleted(
+              insertedCount: 0,
+              syncedCount:
+                  unsynced.length +
+                  pendingActivities.length +
+                  pendingSummaries.length,
+              message:
+                  'Synced ${unsynced.length} records, ${pendingActivities.length} activities, ${pendingSummaries.length} summaries',
+            ),
+      );
       setState(
         () =>
             _status =
@@ -456,6 +516,16 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _startPeriodicSync() async {
+    if (kIsWeb || defaultTargetPlatform != TargetPlatform.android) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Periodic background sync is available on Android.'),
+        ),
+      );
+      return;
+    }
+
     final healthService = ref.read(healthServiceProvider);
     final backgroundGranted = await healthService.requestBackgroundPermission();
 
@@ -544,6 +614,7 @@ class _DashboardBody extends StatelessWidget {
   final ActivitySession? activeSession;
   final DashboardWidgetPreferences preferences;
   final DashboardMetricTrends? trends;
+  final TrainingGoals goals;
   final TrainingInsightSummary? insightSummary;
   final ActivitySession? recentActivity;
   final ValueChanged<String> onMetricTap;
@@ -557,6 +628,7 @@ class _DashboardBody extends StatelessWidget {
     required this.activeSession,
     required this.preferences,
     required this.trends,
+    required this.goals,
     required this.insightSummary,
     required this.recentActivity,
     required this.onMetricTap,
@@ -592,7 +664,10 @@ class _DashboardBody extends StatelessWidget {
                     const SizedBox(height: 16),
                     AnimatedSection(
                       index: 1,
-                      child: _InsightSnapshotCard(summary: insightSummary!),
+                      child: _InsightSnapshotCard(
+                        summary: insightSummary!,
+                        goals: goals,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 20),
@@ -621,6 +696,7 @@ class _DashboardBody extends StatelessWidget {
                     child: MetricGrid(
                       summary: summary,
                       preferences: preferences,
+                      goals: goals,
                       trends: trends,
                       onMetricTap: onMetricTap,
                     ),
@@ -746,8 +822,9 @@ class _RecentActivityCard extends StatelessWidget {
 
 class _InsightSnapshotCard extends StatelessWidget {
   final TrainingInsightSummary summary;
+  final TrainingGoals goals;
 
-  const _InsightSnapshotCard({required this.summary});
+  const _InsightSnapshotCard({required this.summary, required this.goals});
 
   @override
   Widget build(BuildContext context) {
@@ -800,7 +877,7 @@ class _InsightSnapshotCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${summary.activeDays}/7 active days / ${fmtDuration(summary.weeklyMovingSeconds)} load',
+                  '${summary.activeDays}/${goals.weeklyActiveDays} active days / ${fmtDuration(summary.weeklyMovingSeconds)} load',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(

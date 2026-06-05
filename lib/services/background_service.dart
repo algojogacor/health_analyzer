@@ -11,7 +11,10 @@ import 'package:workmanager/workmanager.dart';
 import '../database/database.dart';
 import 'activity_sync_mapper.dart';
 import 'health_service.dart';
+import 'proactive_insight_service.dart';
 import 'turso_service.dart';
+import 'webhook_service.dart';
+import 'webhook_settings_service.dart';
 
 /// Unique task names.
 const String healthSyncTask = 'com.healthanalyzer.sync';
@@ -220,6 +223,32 @@ Future<void> _executeHealthSync() async {
         message: Value(syncMessage),
       ),
     );
+    try {
+      if (syncSuccess) {
+        await ProactiveInsightService(
+          db: db,
+          storage: storage,
+        ).maybeNotifyAfterSync(
+          insertedCount: insertedCount,
+          syncedCount: syncedCount,
+          message: syncMessage,
+        );
+        await WebhookService(
+          settingsService: WebhookSettingsService(storage: storage),
+        ).sendSyncCompleted(
+          insertedCount: insertedCount,
+          syncedCount: syncedCount,
+          message: syncMessage,
+        );
+      }
+    } catch (e, stack) {
+      developer.log(
+        'Post-sync notification/webhook failed: $e',
+        name: 'BackgroundService',
+        error: e,
+        stackTrace: stack,
+      );
+    }
     await db.close();
   }
 }

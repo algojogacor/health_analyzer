@@ -2,11 +2,19 @@ import 'package:flutter/material.dart';
 
 import '../dashboard/widgets/actions_card.dart';
 import '../dashboard/widgets/status_card.dart';
+import 'appearance_settings_page.dart';
 import 'ai_settings_page.dart';
 import 'community_settings_page.dart';
+import 'data_export_page.dart';
 import 'external_agent_setup_page.dart';
+import 'fitness_profile_page.dart';
+import 'goal_settings_page.dart';
 import 'map_settings_page.dart';
+import 'notification_settings_page.dart';
 import 'privacy_settings_page.dart';
+import 'training_plan_page.dart';
+import 'voice_coach_settings_page.dart';
+import 'webhook_settings_page.dart';
 
 class SettingsPage extends StatelessWidget {
   final bool tursoOk;
@@ -54,6 +62,22 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 16),
         Card(
           child: ListTile(
+            leading: const Icon(Icons.contrast_outlined),
+            title: const Text('Appearance'),
+            subtitle: const Text('System, light, or dark mode'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AppearanceSettingsPage(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
             leading: const Icon(Icons.lock_outline),
             title: const Text('Privacy defaults'),
             subtitle: const Text('Route visibility, hidden radius, and sync'),
@@ -68,14 +92,88 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 16),
         Card(
           child: ListTile(
+            leading: const Icon(Icons.flag_outlined),
+            title: const Text('Weekly goals'),
+            subtitle: const Text('Steps, active days, minutes, distance'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const GoalSettingsPage()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.event_note_outlined),
+            title: const Text('Training plan'),
+            subtitle: const Text('5K, 10K, and half-marathon templates'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const TrainingPlanPage()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.monitor_heart_outlined),
+            title: const Text('Profile and HR zones'),
+            subtitle: const Text('Max HR, resting HR, zone calculation'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const FitnessProfilePage()),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
             leading: const Icon(Icons.auto_awesome_outlined),
             title: const Text('AI settings'),
-            subtitle: const Text('DeepSeek key, model, and privacy guard'),
+            subtitle: const Text('Provider, base URL, model, API key'),
             trailing: const Icon(Icons.chevron_right),
             onTap: () {
               Navigator.of(
                 context,
               ).push(MaterialPageRoute(builder: (_) => const AiSettingsPage()));
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.notifications_active_outlined),
+            title: const Text('Notifications'),
+            subtitle: const Text('Sync, recovery, PR, streak, training plan'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const NotificationSettingsPage(),
+                ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.record_voice_over_outlined),
+            title: const Text('Voice coach'),
+            subtitle: const Text('Offline TTS cues for recording events'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const VoiceCoachSettingsPage(),
+                ),
+              );
             },
           ),
         ),
@@ -107,6 +205,34 @@ class SettingsPage extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (_) => const ExternalAgentSetupPage(),
                 ),
+              );
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.archive_outlined),
+            title: const Text('Data export'),
+            subtitle: const Text('ZIP with JSON, GPX, and summaries'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const DataExportPage()));
+            },
+          ),
+        ),
+        const SizedBox(height: 16),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.webhook_outlined),
+            title: const Text('Webhook outbound'),
+            subtitle: const Text('Send sanitized events to your own URL'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const WebhookSettingsPage()),
               );
             },
           ),

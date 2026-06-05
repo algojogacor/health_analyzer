@@ -26,6 +26,12 @@ class ExternalAgentSetupPage extends StatelessWidget {
           ),
           SizedBox(height: 12),
           _SetupBlock(
+            title: 'Setup files',
+            body:
+                'Read docs/EXTERNAL_AI_AGENT_SETUP.md and copy skills/health-analyzer-skill/agent.env.example. Fill the copy on Termux or VPS only; never commit secrets.',
+          ),
+          SizedBox(height: 12),
+          _SetupBlock(
             title: 'Agent responsibilities',
             body:
                 'The external agent may read Turso summaries, answer broader Telegram questions, and use its own model/provider configuration.',

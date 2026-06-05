@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:health/health.dart';
 import '../models/sport_mode.dart';
 
@@ -38,6 +39,39 @@ class HealthService {
     HealthDataType.WEIGHT,
   ];
 
+  List<HealthDataType> _availableTypes(List<HealthDataType> types) {
+    return types.where(_health.isDataTypeAvailable).toList(growable: false);
+  }
+
+  Future<bool> _requestAuthorizationBestEffort(
+    List<HealthDataType> types,
+    List<HealthDataAccess> permissions,
+  ) async {
+    if (types.isEmpty) return false;
+    try {
+      return await _health.requestAuthorization(
+        types,
+        permissions: permissions,
+      );
+    } catch (error) {
+      debugPrint('Health authorization batch failed: $error');
+    }
+
+    var grantedAny = false;
+    for (var index = 0; index < types.length; index++) {
+      try {
+        final granted = await _health.requestAuthorization(
+          [types[index]],
+          permissions: [permissions[index]],
+        );
+        grantedAny = grantedAny || granted;
+      } catch (error) {
+        debugPrint('Health authorization skipped ${types[index].name}: $error');
+      }
+    }
+    return grantedAny;
+  }
+
   /// Inisialisasi Health Connect
   Future<void> initialize() async {
     if (_configured) return;
@@ -56,10 +90,11 @@ class HealthService {
   /// Minta izin akses data
   Future<bool> requestPermissions() async {
     await initialize();
-    final permissions = List.filled(_dataTypes.length, HealthDataAccess.READ);
-    final foregroundGranted = await _health.requestAuthorization(
-      _dataTypes,
-      permissions: permissions,
+    final types = _availableTypes(_dataTypes);
+    final permissions = List.filled(types.length, HealthDataAccess.READ);
+    final foregroundGranted = await _requestAuthorizationBestEffort(
+      types,
+      permissions,
     );
 
     // Best-effort: diperlukan agar WorkManager bisa membaca Health Connect
@@ -75,9 +110,16 @@ class HealthService {
   /// dipakai untuk memastikan app pernah diberi akses saat berjalan di foreground.
   Future<bool> hasPermissions() async {
     await initialize();
-    final permissions = List.filled(_dataTypes.length, HealthDataAccess.READ);
-    return await _health.hasPermissions(_dataTypes, permissions: permissions) ??
-        false;
+    final types = _availableTypes(_dataTypes);
+    if (types.isEmpty) return false;
+    final permissions = List.filled(types.length, HealthDataAccess.READ);
+    try {
+      return await _health.hasPermissions(types, permissions: permissions) ??
+          false;
+    } catch (error) {
+      debugPrint('Health permission check failed: $error');
+      return false;
+    }
   }
 
   /// Minta izin baca Health Connect di background jika tersedia di Android.
@@ -110,13 +152,13 @@ class HealthService {
 
   Future<bool> requestWorkoutWritePermissions() async {
     await initialize();
-    final types = [
+    final types = _availableTypes([
       HealthDataType.WORKOUT,
       HealthDataType.DISTANCE_DELTA,
       HealthDataType.TOTAL_CALORIES_BURNED,
-    ];
+    ]);
     final permissions = List.filled(types.length, HealthDataAccess.WRITE);
-    return _health.requestAuthorization(types, permissions: permissions);
+    return _requestAuthorizationBestEffort(types, permissions);
   }
 
   Future<bool> writeWorkoutSummary({
@@ -186,12 +228,23 @@ class HealthService {
   }) async {
     await initialize();
 
-    final targetTypes = types ?? _dataTypes;
-    final rawData = await _health.getHealthDataFromTypes(
-      startTime: start,
-      endTime: end,
-      types: targetTypes,
-    );
+    final targetTypes = _availableTypes(types ?? _dataTypes);
+    if (targetTypes.isEmpty) return const [];
+
+    final rawData = <HealthDataPoint>[];
+    for (final type in targetTypes) {
+      try {
+        rawData.addAll(
+          await _health.getHealthDataFromTypes(
+            startTime: start,
+            endTime: end,
+            types: [type],
+          ),
+        );
+      } catch (error) {
+        debugPrint('Health data skipped ${type.name}: $error');
+      }
+    }
 
     // Deduplicate
     return _health.removeDuplicates(rawData);

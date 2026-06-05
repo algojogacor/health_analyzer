@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart';
@@ -11,8 +12,13 @@ import '../../shared/widgets/animated_section.dart';
 import '../../shared/widgets/info_panel.dart';
 import '../../shared/widgets/premium_card.dart';
 import 'activity_history_list.dart';
+import 'activity_detail_page.dart';
+import 'activity_heatmap_page.dart';
 import 'activity_map_preview.dart';
 import 'activity_recorder_panel.dart';
+import 'route_builder_page.dart';
+import 'route_library_page.dart';
+import 'saved_route_detail_page.dart';
 import 'widgets/active_activity_banner.dart';
 
 class ActivityPage extends StatelessWidget {
@@ -78,11 +84,118 @@ class ActivityPage extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 16),
-        const AnimatedSection(index: 4, child: _SavedRoutesList()),
+        const AnimatedSection(index: 4, child: _RouteToolsPanel()),
         const SizedBox(height: 16),
-        const AnimatedSection(index: 5, child: ActivityHistoryList()),
+        const AnimatedSection(index: 5, child: _SavedRoutesList()),
+        const SizedBox(height: 16),
+        const AnimatedSection(index: 6, child: ActivityHistoryList()),
       ],
     );
+  }
+}
+
+class _RouteToolsPanel extends ConsumerStatefulWidget {
+  const _RouteToolsPanel();
+
+  @override
+  ConsumerState<_RouteToolsPanel> createState() => _RouteToolsPanelState();
+}
+
+class _RouteToolsPanelState extends ConsumerState<_RouteToolsPanel> {
+  bool _importing = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Row(
+        children: [
+          const AccentIconBox(
+            icon: Icons.file_upload_outlined,
+            color: AppTheme.cyan,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  'Route tools',
+                  style: TextStyle(fontWeight: FontWeight.w900),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Import GPX, review personal heatmap, and keep route data local by default.',
+                  style: TextStyle(color: AppTheme.muted),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            alignment: WrapAlignment.end,
+            children: [
+              OutlinedButton.icon(
+                onPressed:
+                    () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const ActivityHeatmapPage(),
+                      ),
+                    ),
+                icon: const Icon(Icons.local_fire_department_outlined),
+                label: const Text('Heatmap'),
+              ),
+              FilledButton.icon(
+                onPressed: _importing ? null : _importGpx,
+                icon:
+                    _importing
+                        ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        )
+                        : const Icon(Icons.upload_file),
+                label: Text(_importing ? 'Importing' : 'Import'),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _importGpx() async {
+    setState(() => _importing = true);
+    try {
+      final picked = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['gpx'],
+        allowMultiple: false,
+      );
+      final path = picked?.files.single.path;
+      if (path == null) return;
+
+      final result = await ref.read(gpxServiceProvider).importFromPath(path);
+      ref.invalidate(activityHistoryProvider);
+      ref.invalidate(unsyncedCountProvider);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Imported ${result.pointCount} GPX points')),
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => ActivityDetailPage(session: result.session),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('GPX import failed: $error')));
+    } finally {
+      if (mounted) setState(() => _importing = false);
+    }
   }
 }
 
@@ -95,20 +208,43 @@ class _SavedRoutesList extends ConsumerWidget {
     return routes.when(
       data: (rows) {
         if (rows.isEmpty) {
-          return const InfoPanel(
+          return InfoPanel(
             icon: Icons.bookmark_border,
             title: 'Saved routes',
             body: 'Save a route from activity detail to reuse it later.',
+            action: FilledButton.icon(
+              onPressed:
+                  () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const RouteBuilderPage()),
+                  ),
+              icon: Icon(Icons.add_road),
+              label: Text('Build route'),
+            ),
           );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Saved routes',
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+            Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    'Saved routes',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w900,
+                    ),
+                  ),
+                ),
+                TextButton(
+                  onPressed:
+                      () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const RouteLibraryPage(),
+                        ),
+                      ),
+                  child: const Text('Open'),
+                ),
+              ],
             ),
             const SizedBox(height: 8),
             ...rows.take(3).map((route) => _SavedRouteTile(route: route)),
@@ -135,33 +271,46 @@ class _SavedRouteTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: PremiumCard(
-        padding: const EdgeInsets.all(12),
-        child: Row(
-          children: [
-            const AccentIconBox(icon: Icons.route, color: AppTheme.cyan),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    route.name,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(fontWeight: FontWeight.w900),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${(route.distanceMeters / 1000).toStringAsFixed(2)} km / ${route.pointCount} pts / ${fmtTime(route.createdAt)}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(color: AppTheme.muted, fontSize: 12),
-                  ),
-                ],
+      child: InkWell(
+        borderRadius: BorderRadius.circular(8),
+        onTap:
+            () => Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => SavedRouteDetailPage(route: route),
               ),
             ),
-          ],
+        child: PremiumCard(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              const AccentIconBox(icon: Icons.route, color: AppTheme.cyan),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      route.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${(route.distanceMeters / 1000).toStringAsFixed(2)} km / ${route.pointCount} pts / ${fmtTime(route.createdAt)}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: AppTheme.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppTheme.muted),
+            ],
+          ),
         ),
       ),
     );

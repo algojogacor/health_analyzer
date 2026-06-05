@@ -11,6 +11,11 @@ class AppTheme {
   static const coral = Color(0xFFFF4D5E);
   static const amber = Color(0xFFFFB020);
   static const violet = Color(0xFF7C5CFF);
+  static const darkInk = Color(0xFFF4F7F8);
+  static const darkMuted = Color(0xFF9AA6AD);
+  static const darkLine = Color(0xFF26343B);
+  static const darkCanvas = Color(0xFF0E1518);
+  static const darkSurface = Color(0xFF151F24);
 
   static ThemeData light() {
     final scheme = ColorScheme.fromSeed(
@@ -109,6 +114,106 @@ class AppTheme {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       dividerTheme: const DividerThemeData(color: line, thickness: 1),
+    );
+  }
+
+  static ThemeData dark() {
+    final scheme = ColorScheme.fromSeed(
+      seedColor: cyan,
+      brightness: Brightness.dark,
+      primary: cyan,
+      secondary: coral,
+      surface: darkSurface,
+      error: coral,
+    );
+
+    return ThemeData(
+      useMaterial3: true,
+      brightness: Brightness.dark,
+      colorScheme: scheme,
+      scaffoldBackgroundColor: darkCanvas,
+      fontFamily: 'Roboto',
+      textTheme: const TextTheme(
+        displaySmall: TextStyle(fontWeight: FontWeight.w900, color: darkInk),
+        headlineSmall: TextStyle(fontWeight: FontWeight.w900, color: darkInk),
+        titleLarge: TextStyle(fontWeight: FontWeight.w900, color: darkInk),
+        titleMedium: TextStyle(fontWeight: FontWeight.w800, color: darkInk),
+        bodyMedium: TextStyle(color: darkInk),
+        labelLarge: TextStyle(fontWeight: FontWeight.w800),
+      ),
+      appBarTheme: const AppBarTheme(
+        backgroundColor: darkSurface,
+        foregroundColor: darkInk,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        surfaceTintColor: Colors.transparent,
+        titleTextStyle: TextStyle(
+          color: darkInk,
+          fontSize: 24,
+          fontWeight: FontWeight.w900,
+        ),
+      ),
+      navigationBarTheme: NavigationBarThemeData(
+        backgroundColor: darkSurface,
+        indicatorColor: cyan.withValues(alpha: 0.18),
+        elevation: 0,
+        labelTextStyle: WidgetStateProperty.resolveWith(
+          (states) => TextStyle(
+            color: states.contains(WidgetState.selected) ? darkInk : darkMuted,
+            fontWeight:
+                states.contains(WidgetState.selected)
+                    ? FontWeight.w900
+                    : FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+        iconTheme: WidgetStateProperty.resolveWith(
+          (states) => IconThemeData(
+            color: states.contains(WidgetState.selected) ? darkInk : darkMuted,
+            size: 24,
+          ),
+        ),
+      ),
+      cardTheme: CardTheme(
+        elevation: 0,
+        color: darkSurface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: const BorderSide(color: darkLine),
+        ),
+      ),
+      filledButtonTheme: FilledButtonThemeData(
+        style: FilledButton.styleFrom(
+          backgroundColor: cyan,
+          foregroundColor: Colors.black,
+          minimumSize: const Size(48, 48),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: darkInk,
+          minimumSize: const Size(48, 48),
+          side: const BorderSide(color: darkLine),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: cyan,
+          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+        ),
+      ),
+      snackBarTheme: SnackBarThemeData(
+        backgroundColor: darkInk,
+        contentTextStyle: const TextStyle(color: darkCanvas),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      dividerTheme: const DividerThemeData(color: darkLine, thickness: 1),
     );
   }
 }

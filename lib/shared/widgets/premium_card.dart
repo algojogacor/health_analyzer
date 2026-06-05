@@ -20,17 +20,23 @@ class PremiumCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     final card = AnimatedContainer(
       duration: AppMotion.fast,
       curve: AppMotion.curve,
       padding: padding,
       decoration: BoxDecoration(
-        color: color ?? Colors.white,
+        color: color ?? theme.colorScheme.surface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: borderColor ?? AppTheme.line),
+        border: Border.all(
+          color: borderColor ?? (dark ? AppTheme.darkLine : AppTheme.line),
+        ),
         boxShadow: [
           BoxShadow(
-            color: AppTheme.ink.withValues(alpha: 0.045),
+            color: (dark ? Colors.black : AppTheme.ink).withValues(
+              alpha: dark ? 0.18 : 0.045,
+            ),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../models/sport_mode.dart';
+import '../../shared/theme/app_theme.dart';
+import '../../shared/widgets/premium_card.dart';
 
 class SportPickerPage extends StatefulWidget {
   final SportMode selectedMode;
@@ -60,10 +62,19 @@ class _SportPickerPageState extends State<SportPickerPage> {
         children: [
           TextField(
             controller: _queryController,
-            decoration: const InputDecoration(
-              prefixIcon: Icon(Icons.search),
+            decoration: InputDecoration(
+              prefixIcon: const Icon(Icons.search),
               labelText: 'Search sport mode',
-              border: OutlineInputBorder(),
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.line),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(8),
+                borderSide: const BorderSide(color: AppTheme.line),
+              ),
             ),
             onChanged: (value) => setState(() => _query = value),
           ),
@@ -255,61 +266,52 @@ class _ModeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selected ? Colors.cyan.shade50 : Colors.white,
-      borderRadius: BorderRadius.circular(8),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: () => onPick(mode),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: selected ? Colors.cyan.shade400 : Colors.grey.shade200,
-            ),
-          ),
-          child: Row(
-            children: [
-              Icon(
+    return PremiumCard(
+      onTap: () => onPick(mode),
+      padding: const EdgeInsets.all(12),
+      color: selected ? AppTheme.cyan.withValues(alpha: 0.08) : Colors.white,
+      borderColor: selected ? AppTheme.cyan : AppTheme.line,
+      child: Row(
+        children: [
+          AccentIconBox(
+            icon:
                 mode.requiresGps
                     ? Icons.explore_outlined
                     : Icons.fitness_center,
-                color: mode.requiresGps ? Colors.teal : Colors.deepOrange,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.start,
+            color: mode.requiresGps ? AppTheme.cyan : AppTheme.coral,
+            size: 38,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mode.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 4,
                   children: [
-                    Text(
-                      mode.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w900),
-                    ),
-                    const SizedBox(height: 4),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 4,
-                      children: [
-                        _Badge(mode.requiresGps ? 'GPS' : 'Indoor'),
-                        if (mode.defaultOnBand) const _Badge('Band default'),
-                      ],
-                    ),
+                    _Badge(mode.requiresGps ? 'GPS' : 'Indoor'),
+                    if (mode.defaultOnBand) const _Badge('Band default'),
                   ],
                 ),
-              ),
-              IconButton(
-                onPressed: () => onToggleFavorite(mode),
-                icon: Icon(favorite ? Icons.star : Icons.star_border),
-                color: favorite ? Colors.amber.shade700 : Colors.grey,
-                tooltip: favorite ? 'Remove favorite' : 'Add favorite',
-              ),
-            ],
+              ],
+            ),
           ),
-        ),
+          IconButton(
+            onPressed: () => onToggleFavorite(mode),
+            icon: Icon(favorite ? Icons.star : Icons.star_border),
+            color: favorite ? AppTheme.amber : AppTheme.muted,
+            tooltip: favorite ? 'Remove favorite' : 'Add favorite',
+          ),
+        ],
       ),
     );
   }
@@ -324,7 +326,7 @@ class _Badge extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.grey.shade100,
+        color: AppTheme.canvas,
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
@@ -332,7 +334,7 @@ class _Badge extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: Colors.grey.shade700,
+            color: AppTheme.muted,
             fontSize: 11,
             fontWeight: FontWeight.w700,
           ),

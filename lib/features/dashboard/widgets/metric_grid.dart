@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../providers/health_provider.dart';
+import '../../../shared/theme/app_theme.dart';
 import '../../../shared/utils/formatters.dart';
+import '../../../shared/widgets/premium_card.dart';
 
 class MetricGrid extends StatelessWidget {
   final HealthCoverageSummary summary;
@@ -34,7 +36,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'Phone source ${summary.phoneSteps} not merged'
                 : 'Wearable source',
         icon: Icons.directions_walk,
-        color: Colors.blue,
+        color: AppTheme.cyan,
         progress: (summary.wearableSteps / 10000).clamp(0, 1).toDouble(),
         trendValues: trends?.steps,
       ),
@@ -45,7 +47,7 @@ class MetricGrid extends StatelessWidget {
         value: fmtNumber(summary.activeCalories, suffix: 'kcal'),
         detail: '-500 kcal target',
         icon: Icons.local_fire_department,
-        color: Colors.amber.shade700,
+        color: AppTheme.amber,
         progress: (summary.activeCalories / 500).clamp(0, 1).toDouble(),
         trendValues: trends?.calories,
       ),
@@ -56,7 +58,7 @@ class MetricGrid extends StatelessWidget {
         value: fmtMinutes(summary.asleepMinutes),
         detail: 'In bed ${fmtMinutes(summary.timeInBedMinutes)}',
         icon: Icons.nightlight_round,
-        color: Colors.deepPurple,
+        color: AppTheme.violet,
         progress: (summary.asleepMinutes / 480).clamp(0, 1).toDouble(),
         trendValues: trends?.sleepMinutes,
       ),
@@ -67,7 +69,7 @@ class MetricGrid extends StatelessWidget {
         value: fmtNumber(summary.avgHeartRate, suffix: 'bpm'),
         detail: 'Min ${fmtNumber(summary.minHeartRate, suffix: 'bpm')}',
         icon: Icons.favorite,
-        color: Colors.red,
+        color: AppTheme.coral,
       ),
       MetricCard(
         metricKey: 'blood_oxygen',
@@ -76,7 +78,7 @@ class MetricGrid extends StatelessWidget {
         value: fmtNumber(summary.avgSpo2, decimals: 1, suffix: '%'),
         detail: 'Min ${fmtNumber(summary.minSpo2, decimals: 1, suffix: '%')}',
         icon: Icons.bloodtype,
-        color: Colors.pink,
+        color: Colors.pink.shade500,
       ),
       MetricCard(
         metricKey: 'hrv',
@@ -85,7 +87,7 @@ class MetricGrid extends StatelessWidget {
         value: fmtNumber(summary.hrvAvgMs, decimals: 1, suffix: 'ms'),
         detail: summary.hrvAvgMs == null ? 'No exported data' : 'Stress proxy',
         icon: Icons.monitor_heart,
-        color: Colors.lightGreen,
+        color: AppTheme.mint,
       ),
       MetricCard(
         metricKey: 'weight',
@@ -97,7 +99,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'Manual entry not found'
                 : 'Manual source',
         icon: Icons.scale,
-        color: Colors.teal,
+        color: Colors.teal.shade600,
       ),
       MetricCard(
         metricKey: 'recovery',
@@ -106,7 +108,7 @@ class MetricGrid extends StatelessWidget {
         value: '${recoveryScore.round()}%',
         detail: summary.confidence,
         icon: Icons.favorite_border,
-        color: Colors.red.shade400,
+        color: AppTheme.coral,
         progress: (recoveryScore / 100).clamp(0, 1).toDouble(),
       ),
       MetricCard(
@@ -116,7 +118,7 @@ class MetricGrid extends StatelessWidget {
         value: '${(weeklySteps / 1000).round()}k steps',
         detail: 'Lightweight load proxy',
         icon: Icons.query_stats,
-        color: Colors.indigo,
+        color: Colors.indigo.shade500,
         trendValues: trends?.steps,
       ),
       MetricCard(
@@ -156,7 +158,7 @@ class MetricGrid extends StatelessWidget {
         value: '${trends?.steps.where((value) => value > 0).length ?? 0}/7',
         detail: 'Days with movement data',
         icon: Icons.apps_outage_outlined,
-        color: Colors.blueGrey,
+        color: Colors.blueGrey.shade600,
         trendValues: trends?.steps,
       ),
     ];
@@ -232,66 +234,108 @@ class MetricCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(8),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return PremiumCard(
+      onTap: onTap,
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
-                    ),
-                  ),
-                  Icon(icon, color: color),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(period, style: TextStyle(color: Colors.grey.shade600)),
-              const Spacer(),
-              Text(
-                value,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.w900,
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
                 ),
               ),
-              const SizedBox(height: 4),
-              Text(
-                detail,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: Colors.grey.shade600, fontSize: 12),
+              AccentIconBox(icon: icon, color: color, size: 34),
+            ],
+          ),
+          const SizedBox(height: 2),
+          Text(
+            period,
+            style: const TextStyle(
+              color: AppTheme.muted,
+              fontWeight: FontWeight.w700,
+              fontSize: 12,
+            ),
+          ),
+          const Spacer(),
+          Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              fontWeight: FontWeight.w900,
+              color: AppTheme.ink,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            detail,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(
+              color: AppTheme.muted,
+              fontSize: 12,
+              height: 1.25,
+            ),
+          ),
+          const SizedBox(height: 12),
+          if (trendValues == null)
+            _ProgressTrack(value: progress ?? 0, color: color)
+          else
+            _MiniTrendBars(values: trendValues!, color: color),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProgressTrack extends StatelessWidget {
+  final double value;
+  final Color color;
+
+  const _ProgressTrack({required this.value, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final clamped = value.clamp(0, 1).toDouble();
+    return Column(
+      children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(999),
+          child: Stack(
+            children: [
+              Container(height: 8, color: AppTheme.line),
+              FractionallySizedBox(
+                widthFactor: clamped,
+                child: Container(height: 8, color: color),
               ),
-              const SizedBox(height: 12),
-              if (trendValues == null)
-                LinearProgressIndicator(
-                  value: progress ?? 0,
-                  minHeight: 8,
-                  borderRadius: BorderRadius.circular(999),
-                  color: color,
-                  backgroundColor: Colors.grey.shade100,
-                )
-              else
-                _MiniTrendBars(values: trendValues!, color: color),
             ],
           ),
         ),
-      ),
+        const SizedBox(height: 5),
+        Row(
+          children: [
+            const Text(
+              '0%',
+              style: TextStyle(color: AppTheme.muted, fontSize: 11),
+            ),
+            const Spacer(),
+            Text(
+              '${(clamped * 100).round()}%',
+              style: const TextStyle(
+                color: AppTheme.muted,
+                fontWeight: FontWeight.w800,
+                fontSize: 11,
+              ),
+            ),
+          ],
+        ),
+      ],
     );
   }
 }
@@ -308,29 +352,53 @@ class _MiniTrendBars extends StatelessWidget {
       0,
       (max, value) => value > max ? value : max,
     );
+    const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
     return SizedBox(
-      height: 28,
+      height: 38,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: values
-            .map((value) {
+            .asMap()
+            .entries
+            .map((entry) {
+              final index = entry.key;
+              final value = entry.value;
               final normalized =
                   maxValue <= 0 ? 0.08 : (value / maxValue).clamp(0.08, 1);
               return Expanded(
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 2),
-                  child: FractionallySizedBox(
-                    heightFactor: normalized.toDouble(),
-                    alignment: Alignment.bottomCenter,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color:
-                            value <= 0
-                                ? Colors.grey.shade200
-                                : color.withValues(alpha: 0.85),
-                        borderRadius: BorderRadius.circular(999),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Expanded(
+                        child: Align(
+                          alignment: Alignment.bottomCenter,
+                          child: FractionallySizedBox(
+                            heightFactor: normalized.toDouble(),
+                            alignment: Alignment.bottomCenter,
+                            child: DecoratedBox(
+                              decoration: BoxDecoration(
+                                color:
+                                    value <= 0
+                                        ? AppTheme.line
+                                        : color.withValues(alpha: 0.88),
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
+                      const SizedBox(height: 3),
+                      Text(
+                        labels[index.clamp(0, labels.length - 1)],
+                        style: const TextStyle(
+                          color: AppTheme.muted,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               );

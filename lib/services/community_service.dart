@@ -77,6 +77,23 @@ class CommunityService {
     );
   }
 
+  Future<void> createChallengeDraft({
+    required String title,
+    required String metric,
+    required double targetValue,
+  }) {
+    return db.upsertChallengeInvite(
+      ChallengeInvitesCompanion.insert(
+        localId: _uuid.v4(),
+        title: title,
+        metric: metric,
+        targetValue: Value(targetValue),
+        status: const Value('draft'),
+        expiresAt: Value(DateTime.now().add(const Duration(days: 7))),
+      ),
+    );
+  }
+
   Future<CommunityShareResult> shareActivity(ActivitySession session) async {
     final settings = await loadSettings();
     final payload = buildPublicActivityPayload(session);

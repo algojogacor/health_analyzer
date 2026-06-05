@@ -13,6 +13,7 @@ import '../services/deepseek_service.dart';
 import '../services/health_service.dart';
 import '../services/offline_map_service.dart';
 import '../services/saved_route_service.dart';
+import '../services/training_insights_service.dart';
 import '../services/turso_service.dart';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>((ref) {
@@ -548,3 +549,13 @@ final activityHeartRateRecordsProvider =
       return records.where((record) => record.dataType == 'HEART_RATE').toList()
         ..sort((a, b) => a.dateFrom.compareTo(b.dateFrom));
     });
+
+final trainingInsightsServiceProvider = Provider<TrainingInsightsService>((
+  ref,
+) {
+  return TrainingInsightsService(ref.read(databaseProvider));
+});
+
+final trainingInsightsProvider = FutureProvider<TrainingInsightSummary>((ref) {
+  return ref.read(trainingInsightsServiceProvider).buildSummary();
+});

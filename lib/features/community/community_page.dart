@@ -3,8 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart';
 import '../../providers/health_provider.dart';
+import '../../shared/theme/app_theme.dart';
 import '../../shared/utils/formatters.dart';
 import '../../shared/widgets/info_panel.dart';
+import '../../shared/widgets/premium_card.dart';
 import '../settings/community_settings_page.dart';
 
 class CommunityPage extends ConsumerWidget {
@@ -102,24 +104,38 @@ class CommunityPage extends ConsumerWidget {
         _SectionTitle(title: 'Challenges'),
         challenges.when(
           data:
-              (rows) =>
-                  rows.isEmpty
-                      ? const InfoPanel(
-                        icon: Icons.emoji_events_outlined,
-                        title: 'Challenges coming soon',
-                        body:
-                            'Friend challenge invites and leaderboards will use a future Turso community database. Nothing is sent today.',
-                      )
-                      : Column(
-                        children:
-                            rows
-                                .map((row) => ListTile(title: Text(row.title)))
-                                .toList(),
-                      ),
+              (rows) => _ChallengePanel(
+                rows: rows,
+                onCreate:
+                    () => _createChallengeDraft(context, ref, activityRows),
+              ),
           loading: () => const LinearProgressIndicator(),
           error: (error, _) => Text('Challenges unavailable: $error'),
         ),
       ],
+    );
+  }
+
+  Future<void> _createChallengeDraft(
+    BuildContext context,
+    WidgetRef ref,
+    List<ActivitySession> activities,
+  ) async {
+    final totalDistance = activities
+        .take(7)
+        .fold<double>(0, (total, item) => total + item.distanceMeters);
+    final targetKm = ((totalDistance / 1000).ceil() + 5).clamp(5, 100);
+    await ref
+        .read(communityServiceProvider)
+        .createChallengeDraft(
+          title: '$targetKm km this week',
+          metric: 'distance_km',
+          targetValue: targetKm.toDouble(),
+        );
+    ref.invalidate(challengeInvitesProvider);
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Challenge draft saved locally')),
     );
   }
 }
@@ -190,50 +206,42 @@ class _LatestShareCardState extends ConsumerState<_LatestShareCard> {
   @override
   Widget build(BuildContext context) {
     final activity = widget.activity;
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              activity.title ?? activity.sportName,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              '${activity.sportName} / ${(activity.distanceMeters / 1000).toStringAsFixed(2)} km / ${fmtDuration(activity.movingSeconds)}',
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-            const SizedBox(height: 12),
-            const InfoPanel(
-              icon: Icons.verified_user_outlined,
-              title: 'Sanitized payload',
-              body:
-                  'Share includes public metrics only. Raw Health Connect records and raw GPS points are excluded.',
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
-              onPressed: _sharing ? null : _share,
-              icon:
-                  _sharing
-                      ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                      : const Icon(Icons.ios_share),
-              label: Text(_sharing ? 'Sharing...' : 'Share latest activity'),
-            ),
-          ],
-        ),
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            activity.title ?? activity.sportName,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            '${activity.sportName} / ${(activity.distanceMeters / 1000).toStringAsFixed(2)} km / ${fmtDuration(activity.movingSeconds)}',
+            style: const TextStyle(color: AppTheme.muted),
+          ),
+          const SizedBox(height: 12),
+          const InfoPanel(
+            icon: Icons.verified_user_outlined,
+            title: 'Sanitized payload',
+            body:
+                'Share includes public metrics only. Raw Health Connect records and raw GPS points are excluded.',
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: _sharing ? null : _share,
+            icon:
+                _sharing
+                    ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                    : const Icon(Icons.ios_share),
+            label: Text(_sharing ? 'Sharing...' : 'Share latest activity'),
+          ),
+        ],
       ),
     );
   }
@@ -273,13 +281,147 @@ class _ShareRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        leading: Icon(
-          row.status == 'shared' ? Icons.public : Icons.drafts_outlined,
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: PremiumCard(
+        padding: const EdgeInsets.all(12),
+        child: Row(
+          children: [
+            AccentIconBox(
+              icon:
+                  row.status == 'shared' ? Icons.public : Icons.drafts_outlined,
+              color: row.status == 'shared' ? AppTheme.mint : AppTheme.amber,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    row.publicUrl ?? row.shareId ?? row.localId,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    row.status,
+                    style: const TextStyle(
+                      color: AppTheme.muted,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ),
-        title: Text(row.publicUrl ?? row.shareId ?? row.localId),
-        subtitle: Text(row.status),
+      ),
+    );
+  }
+}
+
+class _ChallengePanel extends StatelessWidget {
+  final List<ChallengeInvite> rows;
+  final VoidCallback onCreate;
+
+  const _ChallengePanel({required this.rows, required this.onCreate});
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AccentIconBox(
+                icon: Icons.emoji_events_outlined,
+                color: AppTheme.amber,
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Community-lite challenges',
+                      style: TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    SizedBox(height: 4),
+                    Text(
+                      'Drafts are local-only until the Koyeb community gateway is enabled.',
+                      style: TextStyle(color: AppTheme.muted, fontSize: 12),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: onCreate,
+                icon: const Icon(Icons.add_circle_outline),
+                tooltip: 'Create challenge draft',
+              ),
+            ],
+          ),
+          if (rows.isEmpty) ...[
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: onCreate,
+              icon: const Icon(Icons.add),
+              label: const Text('Create local challenge draft'),
+            ),
+          ] else ...[
+            const SizedBox(height: 12),
+            ...rows.map((row) => _ChallengeRow(row: row)),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _ChallengeRow extends StatelessWidget {
+  final ChallengeInvite row;
+
+  const _ChallengeRow({required this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 10),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: AppTheme.canvas,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.line),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      row.title,
+                      style: const TextStyle(fontWeight: FontWeight.w900),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${row.metric} / target ${row.targetValue.toStringAsFixed(0)} / ${row.status}',
+                      style: const TextStyle(
+                        color: AppTheme.muted,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right, color: AppTheme.muted),
+            ],
+          ),
+        ),
       ),
     );
   }

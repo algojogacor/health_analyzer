@@ -3,7 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart';
 import '../../providers/health_provider.dart';
+import '../../services/training_insights_service.dart';
+import '../../shared/theme/app_theme.dart';
+import '../../shared/widgets/animated_section.dart';
 import '../../shared/widgets/info_panel.dart';
+import '../../shared/widgets/premium_card.dart';
 import '../settings/ai_settings_page.dart';
 
 class AiPage extends ConsumerStatefulWidget {
@@ -36,71 +40,65 @@ class _AiPageState extends ConsumerState<AiPage> {
     final settings = ref.watch(deepSeekSettingsProvider);
     final coverage = ref.watch(coverageSummaryProvider);
     final activityHistory = ref.watch(activityHistoryProvider);
+    final insights = ref.watch(trainingInsightsProvider);
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
       children: [
-        settings.when(
-          data:
-              (value) =>
-                  value.isConfigured
-                      ? _CoachCards(
-                        recordCount: coverage.valueOrNull?.recordCount ?? 0,
-                        confidence: coverage.valueOrNull?.confidence ?? '--',
-                        model: value.model,
-                      )
-                      : InfoPanel(
-                        icon: Icons.key_outlined,
-                        title: 'DeepSeek is not configured',
-                        body:
-                            'Add your API key to enable AI chat. Local summaries and privacy tools are still available.',
-                        action: TextButton.icon(
-                          onPressed:
-                              () => Navigator.of(context).push(
-                                MaterialPageRoute(
-                                  builder: (_) => const AiSettingsPage(),
+        AnimatedSection(
+          index: 0,
+          child: settings.when(
+            data:
+                (value) =>
+                    value.isConfigured
+                        ? _CoachCards(
+                          recordCount: coverage.valueOrNull?.recordCount ?? 0,
+                          confidence: coverage.valueOrNull?.confidence ?? '--',
+                          model: value.model,
+                          insights: insights.valueOrNull,
+                        )
+                        : InfoPanel(
+                          icon: Icons.key_outlined,
+                          title: 'DeepSeek is not configured',
+                          body:
+                              'Add your API key to enable AI chat. Local summaries and privacy tools are still available.',
+                          action: TextButton.icon(
+                            onPressed:
+                                () => Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (_) => const AiSettingsPage(),
+                                  ),
                                 ),
-                              ),
-                          icon: const Icon(Icons.settings),
-                          label: const Text('Configure'),
+                            icon: const Icon(Icons.settings),
+                            label: const Text('Configure'),
+                          ),
                         ),
-                      ),
-          loading: () => const LinearProgressIndicator(),
-          error:
-              (error, _) => InfoPanel(
-                icon: Icons.error_outline,
-                title: 'AI settings unavailable',
-                body: error.toString(),
-              ),
+            loading: () => const LinearProgressIndicator(),
+            error:
+                (error, _) => InfoPanel(
+                  icon: Icons.error_outline,
+                  title: 'AI settings unavailable',
+                  body: error.toString(),
+                ),
+          ),
         ),
         const SizedBox(height: 16),
-        SegmentedButton<String>(
-          showSelectedIcon: false,
-          segments: const [
-            ButtonSegment(
-              value: 'daily',
-              icon: Icon(Icons.today_outlined),
-              label: Text('Daily'),
-            ),
-            ButtonSegment(
-              value: 'activity',
-              icon: Icon(Icons.route),
-              label: Text('Latest'),
-            ),
-            ButtonSegment(
-              value: 'gaps',
-              icon: Icon(Icons.fact_check_outlined),
-              label: Text('Gaps'),
-            ),
-          ],
-          selected: {_contextMode},
-          onSelectionChanged:
-              _busy
-                  ? null
-                  : (value) => setState(() => _contextMode = value.first),
+        AnimatedSection(
+          index: 1,
+          child: _ContextPicker(
+            selected: _contextMode,
+            busy: _busy,
+            onChanged: (value) => setState(() => _contextMode = value),
+            onPrompt: _usePrompt,
+          ),
         ),
         const SizedBox(height: 16),
-        ..._messages.map((message) => _MessageBubble(message: message)),
+        ..._messages.asMap().entries.map(
+          (entry) => AnimatedSection(
+            index: entry.key + 2,
+            child: _MessageBubble(message: entry.value),
+          ),
+        ),
         const SizedBox(height: 12),
         Row(
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -176,17 +174,27 @@ class _AiPageState extends ConsumerState<AiPage> {
       if (mounted) setState(() => _busy = false);
     }
   }
+
+  void _usePrompt(String prompt, String mode) {
+    if (_busy) return;
+    setState(() {
+      _contextMode = mode;
+      _inputController.text = prompt;
+    });
+  }
 }
 
 class _CoachCards extends StatelessWidget {
   final int recordCount;
   final String confidence;
   final String model;
+  final TrainingInsightSummary? insights;
 
   const _CoachCards({
     required this.recordCount,
     required this.confidence,
     required this.model,
+    required this.insights,
   });
 
   @override
@@ -205,25 +213,28 @@ class _CoachCards extends StatelessWidget {
           icon: Icons.auto_awesome,
           title: 'AI Summary',
           body: '$model ready',
-          color: Colors.deepPurple,
+          color: AppTheme.violet,
         ),
         _CoachCard(
           icon: Icons.verified_user_outlined,
           title: 'Privacy Guard',
           body: 'Sanitized context',
-          color: Colors.teal,
+          color: AppTheme.cyan,
         ),
         _CoachCard(
           icon: Icons.fact_check_outlined,
           title: 'Data Quality',
           body: '$recordCount records',
-          color: Colors.orange,
+          color: AppTheme.amber,
         ),
         _CoachCard(
           icon: Icons.favorite_border,
           title: 'Recovery',
-          body: confidence,
-          color: Colors.red,
+          body:
+              insights == null
+                  ? confidence
+                  : '${insights!.readinessScore} / ${insights!.readinessLabel}',
+          color: AppTheme.coral,
         ),
       ],
     );
@@ -245,30 +256,120 @@ class _CoachCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
-        color: Colors.white,
+    return PremiumCard(
+      padding: const EdgeInsets.all(14),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          AccentIconBox(icon: icon, color: color, size: 34),
+          const Spacer(),
+          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
+          const SizedBox(height: 3),
+          Text(
+            body,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(color: AppTheme.muted),
+          ),
+        ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: color),
-            const Spacer(),
-            Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-            const SizedBox(height: 3),
-            Text(
-              body,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(color: Colors.grey.shade700),
-            ),
-          ],
-        ),
+    );
+  }
+}
+
+class _ContextPicker extends StatelessWidget {
+  final String selected;
+  final bool busy;
+  final ValueChanged<String> onChanged;
+  final void Function(String prompt, String mode) onPrompt;
+
+  const _ContextPicker({
+    required this.selected,
+    required this.busy,
+    required this.onChanged,
+    required this.onPrompt,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(
+                value: 'daily',
+                icon: Icon(Icons.today_outlined),
+                label: Text('Daily'),
+              ),
+              ButtonSegment(
+                value: 'activity',
+                icon: Icon(Icons.route),
+                label: Text('Latest'),
+              ),
+              ButtonSegment(
+                value: 'gaps',
+                icon: Icon(Icons.fact_check_outlined),
+                label: Text('Gaps'),
+              ),
+            ],
+            selected: {selected},
+            onSelectionChanged: busy ? null : (value) => onChanged(value.first),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _PromptChip(
+                label: 'What should I do today?',
+                onTap:
+                    () => onPrompt(
+                      'Based on my current data, what should I do today?',
+                      'daily',
+                    ),
+              ),
+              _PromptChip(
+                label: 'Explain my data gaps',
+                onTap:
+                    () => onPrompt(
+                      'Explain my data gaps and what I should fix first.',
+                      'gaps',
+                    ),
+              ),
+              _PromptChip(
+                label: 'Review latest workout',
+                onTap:
+                    () => onPrompt(
+                      'Review my latest workout and give practical next steps.',
+                      'activity',
+                    ),
+              ),
+            ],
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class _PromptChip extends StatelessWidget {
+  final String label;
+  final VoidCallback onTap;
+
+  const _PromptChip({required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return ActionChip(
+      onPressed: onTap,
+      avatar: const Icon(Icons.auto_awesome, size: 16),
+      label: Text(label),
+      backgroundColor: AppTheme.canvas,
+      side: const BorderSide(color: AppTheme.line),
+      labelStyle: const TextStyle(fontWeight: FontWeight.w800),
     );
   }
 }
@@ -288,10 +389,11 @@ class _MessageBubble extends StatelessWidget {
         constraints: const BoxConstraints(maxWidth: 520),
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: isUser ? Colors.cyan.shade50 : Colors.grey.shade100,
+          color: isUser ? AppTheme.cyan.withValues(alpha: 0.10) : Colors.white,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
-            color: isUser ? Colors.cyan.shade100 : Colors.grey.shade200,
+            color:
+                isUser ? AppTheme.cyan.withValues(alpha: 0.24) : AppTheme.line,
           ),
         ),
         child: Text(message.content),

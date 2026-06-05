@@ -3,7 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../database/database.dart';
 import '../../providers/health_provider.dart';
+import '../../shared/theme/app_theme.dart';
 import '../../shared/utils/formatters.dart';
+import '../../shared/widgets/premium_card.dart';
 import 'activity_detail_page.dart';
 
 class ActivityHistoryList extends ConsumerWidget {
@@ -16,33 +18,62 @@ class ActivityHistoryList extends ConsumerWidget {
     return history.when(
       data: (sessions) {
         if (sessions.isEmpty) {
-          return Card(
-            elevation: 0,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
-              side: BorderSide(color: Colors.grey.shade200),
-            ),
-            child: const Padding(
-              padding: EdgeInsets.all(20),
-              child: Text('No saved activities yet.'),
+          return const PremiumCard(
+            child: Row(
+              children: [
+                AccentIconBox(icon: Icons.route_outlined, color: AppTheme.cyan),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'No saved activities yet. Start one outdoor or indoor session to build your training log.',
+                    style: TextStyle(
+                      color: AppTheme.muted,
+                      fontWeight: FontWeight.w700,
+                      height: 1.35,
+                    ),
+                  ),
+                ),
+              ],
             ),
           );
         }
 
-        return Card(
-          elevation: 0,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(8),
-            side: BorderSide(color: Colors.grey.shade200),
-          ),
+        return PremiumCard(
+          padding: EdgeInsets.zero,
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const ListTile(
-                title: Text(
-                  'Activity history',
-                  style: TextStyle(fontWeight: FontWeight.w800),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 10),
+                child: Row(
+                  children: [
+                    AccentIconBox(
+                      icon: Icons.history,
+                      color: AppTheme.violet,
+                      size: 34,
+                    ),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Activity history',
+                            style: TextStyle(fontWeight: FontWeight.w900),
+                          ),
+                          SizedBox(height: 2),
+                          Text(
+                            'Saved local workout summaries',
+                            style: TextStyle(
+                              color: AppTheme.muted,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                subtitle: Text('Saved local workout summaries'),
               ),
               const Divider(height: 1),
               ...sessions.map((session) => _ActivityHistoryTile(session)),
@@ -56,13 +87,8 @@ class ActivityHistoryList extends ConsumerWidget {
             child: Center(child: CircularProgressIndicator()),
           ),
       error:
-          (error, _) => Card(
-            elevation: 0,
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Text('Activity history unavailable: $error'),
-            ),
-          ),
+          (error, _) =>
+              PremiumCard(child: Text('Activity history unavailable: $error')),
     );
   }
 }
@@ -82,21 +108,7 @@ class _ActivityHistoryTile extends StatelessWidget {
           : session.elapsedSeconds,
     );
 
-    return ListTile(
-      leading: CircleAvatar(
-        backgroundColor:
-            session.status == 'completed'
-                ? Colors.teal.withValues(alpha: 0.12)
-                : Colors.orange.withValues(alpha: 0.12),
-        foregroundColor:
-            session.status == 'completed' ? Colors.teal : Colors.orange,
-        child: Icon(session.requiresGps ? Icons.map : Icons.fitness_center),
-      ),
-      title: Text(title),
-      subtitle: Text(
-        '${session.sportName} - ${fmtTime(session.startedAt)} - $duration',
-      ),
-      trailing: Text('${distanceKm.toStringAsFixed(2)} km'),
+    return InkWell(
       onTap: () {
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -104,6 +116,54 @@ class _ActivityHistoryTile extends StatelessWidget {
           ),
         );
       },
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Row(
+          children: [
+            AccentIconBox(
+              icon: session.requiresGps ? Icons.map : Icons.fitness_center,
+              color:
+                  session.status == 'completed'
+                      ? AppTheme.cyan
+                      : AppTheme.amber,
+              size: 40,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w900),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '${session.sportName} / ${fmtTime(session.startedAt)} / $duration',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                Text(
+                  '${distanceKm.toStringAsFixed(2)} km',
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                const Icon(Icons.chevron_right, color: AppTheme.muted),
+              ],
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

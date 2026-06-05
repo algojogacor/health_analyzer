@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../models/sport_mode.dart';
 import '../../services/activity_recorder_service.dart';
 import '../../services/moving_time_service.dart';
+import '../../shared/theme/app_theme.dart';
+import '../../shared/widgets/premium_card.dart';
 import 'widgets/route_map.dart';
 
 class ActivityMapPreview extends StatefulWidget {
@@ -35,109 +37,107 @@ class _ActivityMapPreviewState extends State<ActivityMapPreview> {
             ? widget.snapshot?.locationQualityLabel ?? 'Searching'
             : 'Idle';
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.explore, color: Colors.cyan.shade700),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Live map preview',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AccentIconBox(
+                icon: Icons.explore,
+                color: AppTheme.cyan,
+                size: 36,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Live map preview',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                _LocationBadge(label: qualityLabel, accuracy: accuracy),
+              ),
+              _LocationBadge(label: qualityLabel, accuracy: accuracy),
+            ],
+          ),
+          const SizedBox(height: 12),
+          if (usesGps) ...[
+            SegmentedButton<RouteMapStyle>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: RouteMapStyle.street,
+                  icon: Icon(Icons.map_outlined),
+                  label: Text('Street'),
+                ),
+                ButtonSegment(
+                  value: RouteMapStyle.satellite,
+                  icon: Icon(Icons.satellite_alt_outlined),
+                  label: Text('Satellite'),
+                ),
               ],
+              selected: {_style},
+              onSelectionChanged: (selection) {
+                setState(() {
+                  _style = selection.first;
+                });
+              },
             ),
             const SizedBox(height: 12),
-            if (usesGps) ...[
-              SegmentedButton<RouteMapStyle>(
-                showSelectedIcon: false,
-                segments: const [
-                  ButtonSegment(
-                    value: RouteMapStyle.street,
-                    icon: Icon(Icons.map_outlined),
-                    label: Text('Street'),
-                  ),
-                  ButtonSegment(
-                    value: RouteMapStyle.satellite,
-                    icon: Icon(Icons.satellite_alt_outlined),
-                    label: Text('Satellite'),
-                  ),
-                ],
-                selected: {_style},
-                onSelectionChanged: (selection) {
-                  setState(() {
-                    _style = selection.first;
-                  });
-                },
-              ),
-              const SizedBox(height: 12),
-            ],
-            if (!usesGps)
-              const _InlineNotice(
-                icon: Icons.location_off_outlined,
-                title: 'No GPS route for this mode',
-                body:
-                    'Indoor and strength-style modes save workout summary only. Pick an outdoor mode to record a route map.',
-              )
-            else if (!hasPoints)
-              _InlineNotice(
-                icon:
-                    isRecording
-                        ? Icons.gps_not_fixed
-                        : Icons.gps_fixed_outlined,
-                title:
-                    isRecording
-                        ? 'Waiting for GPS point'
-                        : 'GPS ready when you start',
-                body:
-                    isRecording
-                        ? 'Keep location enabled and wait until this preview shows your position.'
-                        : 'Location is not active on this screen. Start an outdoor activity to open the recording map and acquire GPS.',
-              )
-            else
-              RouteMap(
-                points: points
-                    .map(
-                      (point) => RouteMapPoint(
-                        latitude: point.latitude,
-                        longitude: point.longitude,
-                        accuracyMeters: point.accuracyMeters,
-                      ),
-                    )
-                    .toList(growable: false),
-                style: _style,
-                height: 220,
-                interactive: false,
-                showAccuracy: true,
-                emptyLabel: 'Waiting for GPS route.',
-              ),
-            if (usesGps) ...[
-              const SizedBox(height: 10),
-              Text(
-                !isRecording
-                    ? 'Location accuracy: idle until recording starts'
-                    : accuracy == null
-                    ? 'Location accuracy: searching'
-                    : 'Location accuracy: +/- ${accuracy.round()} m',
-                style: TextStyle(color: Colors.grey.shade700),
-              ),
-            ],
           ],
-        ),
+          if (!usesGps)
+            const _InlineNotice(
+              icon: Icons.location_off_outlined,
+              title: 'No GPS route for this mode',
+              body:
+                  'Indoor and strength-style modes save workout summary only. Pick an outdoor mode to record a route map.',
+            )
+          else if (!hasPoints)
+            _InlineNotice(
+              icon:
+                  isRecording ? Icons.gps_not_fixed : Icons.gps_fixed_outlined,
+              title:
+                  isRecording
+                      ? 'Waiting for GPS point'
+                      : 'GPS ready when you start',
+              body:
+                  isRecording
+                      ? 'Keep location enabled and wait until this preview shows your position.'
+                      : 'Location is not active on this screen. Start an outdoor activity to open the recording map and acquire GPS.',
+            )
+          else
+            RouteMap(
+              points: points
+                  .map(
+                    (point) => RouteMapPoint(
+                      latitude: point.latitude,
+                      longitude: point.longitude,
+                      accuracyMeters: point.accuracyMeters,
+                    ),
+                  )
+                  .toList(growable: false),
+              style: _style,
+              height: 220,
+              interactive: false,
+              showAccuracy: true,
+              emptyLabel: 'Waiting for GPS route.',
+            ),
+          if (usesGps) ...[
+            const SizedBox(height: 10),
+            Text(
+              !isRecording
+                  ? 'Location accuracy: idle until recording starts'
+                  : accuracy == null
+                  ? 'Location accuracy: searching'
+                  : 'Location accuracy: +/- ${accuracy.round()} m',
+              style: const TextStyle(
+                color: AppTheme.muted,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -159,14 +159,14 @@ class _InlineNotice extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.canvas,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.line),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, color: Colors.cyan.shade700),
+          Icon(icon, color: AppTheme.cyan),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -177,7 +177,10 @@ class _InlineNotice extends StatelessWidget {
                   style: const TextStyle(fontWeight: FontWeight.w800),
                 ),
                 const SizedBox(height: 6),
-                Text(body, style: TextStyle(color: Colors.grey.shade700)),
+                Text(
+                  body,
+                  style: const TextStyle(color: AppTheme.muted, height: 1.35),
+                ),
               ],
             ),
           ),
@@ -219,15 +222,15 @@ class _LocationBadge extends StatelessWidget {
   Color _colorFor(String label) {
     switch (label) {
       case 'Exact':
-        return Colors.green.shade700;
+        return AppTheme.mint;
       case 'Good':
-        return Colors.teal.shade700;
+        return AppTheme.cyan;
       case 'Weak':
-        return Colors.orange.shade700;
+        return AppTheme.amber;
       case 'Idle':
-        return Colors.blueGrey.shade700;
+        return AppTheme.muted;
       default:
-        return Colors.grey.shade700;
+        return AppTheme.muted;
     }
   }
 }

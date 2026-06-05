@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 
 import '../../models/sport_mode.dart';
 import '../../services/activity_recorder_service.dart';
+import '../../shared/theme/app_theme.dart';
 import '../../shared/utils/formatters.dart';
-import '../../shared/widgets/info_panel.dart';
+import '../../shared/widgets/premium_card.dart';
 import 'recorder_stat.dart';
 import 'sport_picker_page.dart';
 
@@ -29,107 +30,109 @@ class ActivityRecorderPanel extends StatelessWidget {
     final stats = snapshot?.stats;
     final session = snapshot?.session;
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.radio_button_checked, color: Colors.cyan.shade700),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: Text(
-                    'Activity recorder',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
+    return PremiumCard(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const AccentIconBox(
+                icon: Icons.radio_button_checked,
+                color: AppTheme.cyan,
+                size: 36,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Activity recorder',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color:
-                        isRecording
-                            ? Colors.green.withValues(alpha: 0.12)
-                            : Colors.grey.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(999),
-                  ),
-                  child: Text(
-                    isRecording ? (session?.status ?? 'recording') : 'ready',
-                    style: TextStyle(
-                      color:
-                          isRecording
-                              ? Colors.green.shade700
-                              : Colors.grey.shade700,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+              ),
+              _StatusPill(
+                label: isRecording ? (session?.status ?? 'recording') : 'ready',
+                color: isRecording ? AppTheme.mint : AppTheme.muted,
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          _SportModeButton(
+            mode: selectedMode,
+            enabled: !isRecording,
+            onPick: () async {
+              final result = await Navigator.of(context).push<SportMode>(
+                MaterialPageRoute(
+                  builder: (_) => SportPickerPage(selectedMode: selectedMode),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _SportModeButton(
-              mode: selectedMode,
-              enabled: !isRecording,
-              onPick: () async {
-                final result = await Navigator.of(context).push<SportMode>(
-                  MaterialPageRoute(
-                    builder: (_) => SportPickerPage(selectedMode: selectedMode),
-                  ),
-                );
-                if (result != null) onModeChanged(result);
-              },
-            ),
-            const SizedBox(height: 12),
-            _PreStartChecklist(mode: selectedMode, snapshot: snapshot),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: RecorderStat(
-                    label: 'Distance',
-                    value:
-                        '${((stats?.distanceMeters ?? 0) / 1000).toStringAsFixed(2)} km',
-                  ),
+              );
+              if (result != null) onModeChanged(result);
+            },
+          ),
+          const SizedBox(height: 14),
+          _PreStartChecklist(mode: selectedMode, snapshot: snapshot),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              Expanded(
+                child: RecorderStat(
+                  label: 'Distance',
+                  value:
+                      '${((stats?.distanceMeters ?? 0) / 1000).toStringAsFixed(2)} km',
                 ),
-                Expanded(
-                  child: RecorderStat(
-                    label: 'Moving',
-                    value: fmtDuration(stats?.movingSeconds ?? 0),
-                  ),
+              ),
+              Expanded(
+                child: RecorderStat(
+                  label: 'Moving',
+                  value: fmtDuration(stats?.movingSeconds ?? 0),
                 ),
-                Expanded(
-                  child: RecorderStat(
-                    label: 'Points',
-                    value: '${snapshot?.pointCount ?? 0}',
-                  ),
+              ),
+              Expanded(
+                child: RecorderStat(
+                  label: 'Points',
+                  value: '${snapshot?.pointCount ?? 0}',
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            const InfoPanel(
-              icon: Icons.privacy_tip_outlined,
-              title: 'Privacy defaults',
-              body:
-                  'Route private by default. Start/end hidden at 300m. Full route sync is opt-in; summary sync stays available.',
-            ),
-            const SizedBox(height: 12),
-            FilledButton.icon(
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const _PrivacyInlineNote(),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton.icon(
               onPressed: isRecording ? onOpenRecording : onStart,
               icon: Icon(isRecording ? Icons.open_in_full : Icons.play_arrow),
               label: Text(isRecording ? 'Open recording' : 'Start activity'),
             ),
-          ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatusPill extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _StatusPill({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: color == AppTheme.muted ? AppTheme.ink : color,
+          fontWeight: FontWeight.w900,
+          fontSize: 12,
         ),
       ),
     );
@@ -201,9 +204,9 @@ class _PreStartChecklist extends StatelessWidget {
     final accuracy = snapshot?.lastAccuracyMeters;
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.grey.shade50,
+        color: AppTheme.canvas,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.grey.shade200),
+        border: Border.all(color: AppTheme.line),
       ),
       child: Padding(
         padding: const EdgeInsets.all(12),
@@ -261,12 +264,12 @@ class _ChecklistRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: ok ? Colors.teal : Colors.orange),
+          Icon(icon, size: 18, color: ok ? AppTheme.mint : AppTheme.amber),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               label,
-              style: TextStyle(color: Colors.grey.shade800, fontSize: 13),
+              style: const TextStyle(color: AppTheme.ink, fontSize: 13),
             ),
           ),
         ],
@@ -284,7 +287,7 @@ class _SmallPill extends StatelessWidget {
   Widget build(BuildContext context) {
     return DecoratedBox(
       decoration: BoxDecoration(
-        color: Colors.cyan.shade50,
+        color: AppTheme.cyan.withValues(alpha: 0.10),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Padding(
@@ -292,10 +295,43 @@ class _SmallPill extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            color: Colors.cyan.shade800,
+            color: AppTheme.ink,
             fontWeight: FontWeight.w800,
             fontSize: 12,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PrivacyInlineNote extends StatelessWidget {
+  const _PrivacyInlineNote();
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: AppTheme.ink,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: const Padding(
+        padding: EdgeInsets.all(12),
+        child: Row(
+          children: [
+            Icon(Icons.privacy_tip_outlined, color: Colors.white),
+            SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Private by default. Start/end hidden at 300m; full route sync is opt-in.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w800,
+                  height: 1.25,
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

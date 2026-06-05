@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'features/dashboard/dashboard_page.dart';
+import 'shared/theme/app_theme.dart';
 
 class HealthAnalyzerApp extends StatelessWidget {
   const HealthAnalyzerApp({super.key});
@@ -10,11 +11,7 @@ class HealthAnalyzerApp extends StatelessWidget {
     return MaterialApp(
       title: 'Health Analyzer',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.teal,
-        useMaterial3: true,
-        brightness: Brightness.light,
-      ),
+      theme: AppTheme.light(),
       home: const HomePage(),
     );
   }

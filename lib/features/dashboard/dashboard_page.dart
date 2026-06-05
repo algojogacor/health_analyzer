@@ -9,9 +9,13 @@ import '../../models/sport_mode.dart';
 import '../../providers/health_provider.dart';
 import '../../services/activity_sync_mapper.dart';
 import '../../services/background_service.dart';
+import '../../services/training_insights_service.dart';
 import '../../services/turso_service.dart';
+import '../../shared/theme/app_theme.dart';
 import '../../shared/utils/formatters.dart';
+import '../../shared/widgets/animated_section.dart';
 import '../../shared/widgets/info_panel.dart';
+import '../../shared/widgets/premium_card.dart';
 import '../ai/ai_page.dart';
 import '../activity/activity_detail_page.dart';
 import '../activity/activity_page.dart';
@@ -20,6 +24,7 @@ import '../activity/activity_save_page.dart';
 import '../activity/widgets/active_activity_banner.dart';
 import '../community/community_page.dart';
 import '../health_detail/metric_detail_page.dart';
+import '../insights/insights_page.dart';
 import '../settings/settings_page.dart';
 import '../settings/setup_dialog.dart';
 import 'dashboard_customize_page.dart';
@@ -49,6 +54,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final recorderSnapshot = ref.watch(activityRecorderSnapshotProvider);
     final dashboardPreferences = ref.watch(dashboardWidgetPreferencesProvider);
     final dashboardTrends = ref.watch(dashboardMetricTrendsProvider);
+    final trainingInsights = ref.watch(trainingInsightsProvider);
     final activityHistory = ref.watch(activityHistoryProvider);
     final preferences =
         dashboardPreferences.valueOrNull ??
@@ -62,8 +68,9 @@ class _HomePageState extends ConsumerState<HomePage> {
     final title = switch (_selectedIndex) {
       0 => 'Dashboard',
       1 => 'Activity',
-      2 => 'AI Coach',
-      3 => 'Community',
+      2 => 'Insights',
+      3 => 'AI Coach',
+      4 => 'Community',
       _ => 'Settings',
     };
     final body = switch (_selectedIndex) {
@@ -72,6 +79,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         activeSession: recorderSnapshot.valueOrNull?.session,
         preferences: preferences,
         trends: dashboardTrends.valueOrNull,
+        insightSummary: trainingInsights.valueOrNull,
         recentActivity: recentActivity,
         onMetricTap: _openMetricDetail,
         onCustomizeDashboard: _openDashboardCustomize,
@@ -109,8 +117,9 @@ class _HomePageState extends ConsumerState<HomePage> {
             ),
         onStopReview: _stopAndReviewActiveActivity,
       ),
-      2 => const AiPage(),
-      3 => const CommunityPage(),
+      2 => const InsightsPage(),
+      3 => const AiPage(),
+      4 => const CommunityPage(),
       _ => SettingsPage(
         tursoOk: tursoStatus.valueOrNull ?? false,
         credentialsConfigured: credsConfigured.valueOrNull ?? false,
@@ -145,7 +154,23 @@ class _HomePageState extends ConsumerState<HomePage> {
           ),
         ],
       ),
-      body: body,
+      body: AnimatedSwitcher(
+        duration: AppMotion.standard,
+        switchInCurve: AppMotion.curve,
+        switchOutCurve: Curves.easeInCubic,
+        transitionBuilder:
+            (child, animation) => FadeTransition(
+              opacity: animation,
+              child: SlideTransition(
+                position: Tween<Offset>(
+                  begin: const Offset(0.02, 0),
+                  end: Offset.zero,
+                ).animate(animation),
+                child: child,
+              ),
+            ),
+        child: KeyedSubtree(key: ValueKey(_selectedIndex), child: body),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _selectedIndex,
         onDestinationSelected: (index) {
@@ -159,6 +184,10 @@ class _HomePageState extends ConsumerState<HomePage> {
           NavigationDestination(
             icon: Icon(Icons.radio_button_checked),
             label: 'Activity',
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.insights_outlined),
+            label: 'Insights',
           ),
           NavigationDestination(
             icon: Icon(Icons.auto_awesome_outlined),
@@ -515,6 +544,7 @@ class _DashboardBody extends StatelessWidget {
   final ActivitySession? activeSession;
   final DashboardWidgetPreferences preferences;
   final DashboardMetricTrends? trends;
+  final TrainingInsightSummary? insightSummary;
   final ActivitySession? recentActivity;
   final ValueChanged<String> onMetricTap;
   final VoidCallback onCustomizeDashboard;
@@ -527,6 +557,7 @@ class _DashboardBody extends StatelessWidget {
     required this.activeSession,
     required this.preferences,
     required this.trends,
+    required this.insightSummary,
     required this.recentActivity,
     required this.onMetricTap,
     required this.onCustomizeDashboard,
@@ -556,39 +587,60 @@ class _DashboardBody extends StatelessWidget {
               (summary) => Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  HeroPanel(summary: summary),
-                  const SizedBox(height: 20),
-                  Text(
-                    'Widgets',
-                    style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.w800,
+                  AnimatedSection(index: 0, child: HeroPanel(summary: summary)),
+                  if (insightSummary != null) ...[
+                    const SizedBox(height: 16),
+                    AnimatedSection(
+                      index: 1,
+                      child: _InsightSnapshotCard(summary: insightSummary!),
                     ),
-                  ),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: TextButton.icon(
-                      onPressed: onCustomizeDashboard,
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Customize dashboard'),
+                  ],
+                  const SizedBox(height: 20),
+                  AnimatedSection(
+                    index: 2,
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            'Widgets',
+                            style: Theme.of(context).textTheme.titleLarge
+                                ?.copyWith(fontWeight: FontWeight.w900),
+                          ),
+                        ),
+                        TextButton.icon(
+                          onPressed: onCustomizeDashboard,
+                          icon: const Icon(Icons.tune),
+                          label: const Text('Customize'),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 12),
-                  MetricGrid(
-                    summary: summary,
-                    preferences: preferences,
-                    trends: trends,
-                    onMetricTap: onMetricTap,
+                  AnimatedSection(
+                    index: 3,
+                    child: MetricGrid(
+                      summary: summary,
+                      preferences: preferences,
+                      trends: trends,
+                      onMetricTap: onMetricTap,
+                    ),
                   ),
                   if (preferences.isVisible('recent_activity') &&
                       recentActivity != null) ...[
                     const SizedBox(height: 16),
-                    _RecentActivityCard(
-                      session: recentActivity!,
-                      onTap: onRecentActivityTap,
+                    AnimatedSection(
+                      index: 4,
+                      child: _RecentActivityCard(
+                        session: recentActivity!,
+                        onTap: onRecentActivityTap,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 16),
-                  QualityPanel(summary: summary),
+                  AnimatedSection(
+                    index: 5,
+                    child: QualityPanel(summary: summary),
+                  ),
                 ],
               ),
           loading:
@@ -627,32 +679,141 @@ class _RecentActivityCard extends StatelessWidget {
         '${session.startedAt.month.toString().padLeft(2, '0')}/'
         '${session.startedAt.year}';
 
-    return Card(
-      elevation: 0,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: Colors.grey.shade200),
+    return PremiumCard(
+      onTap: onTap,
+      child: Row(
+        children: [
+          DecoratedBox(
+            decoration: BoxDecoration(
+              color: AppTheme.ink,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(12),
+              child: Icon(
+                session.requiresGps ? Icons.map : Icons.fitness_center,
+                color: Colors.white,
+              ),
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Recent activity',
+                  style: TextStyle(
+                    color: AppTheme.muted,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${session.sportName} / $date ${fmtTime(session.startedAt)} / ${fmtDuration(duration)}',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(color: AppTheme.muted, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                '${distanceKm.toStringAsFixed(2)} km',
+                style: const TextStyle(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 6),
+              const Icon(Icons.chevron_right, color: AppTheme.muted),
+            ],
+          ),
+        ],
       ),
-      child: ListTile(
-        onTap: onTap,
-        leading: CircleAvatar(
-          backgroundColor: Colors.teal.withValues(alpha: 0.12),
-          foregroundColor: Colors.teal,
-          child: Icon(session.requiresGps ? Icons.map : Icons.fitness_center),
-        ),
-        title: Text(
-          title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
-        subtitle: Text(
-          '${session.sportName} / $date ${fmtTime(session.startedAt)} / ${fmtDuration(duration)}',
-        ),
-        trailing: Text(
-          '${distanceKm.toStringAsFixed(2)} km',
-          style: const TextStyle(fontWeight: FontWeight.w900),
-        ),
+    );
+  }
+}
+
+class _InsightSnapshotCard extends StatelessWidget {
+  final TrainingInsightSummary summary;
+
+  const _InsightSnapshotCard({required this.summary});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = switch (summary.readinessScore) {
+      >= 82 => AppTheme.mint,
+      >= 64 => AppTheme.cyan,
+      >= 45 => AppTheme.amber,
+      _ => AppTheme.coral,
+    };
+
+    return PremiumCard(
+      color: AppTheme.ink,
+      borderColor: AppTheme.ink,
+      child: Row(
+        children: [
+          SizedBox(
+            width: 58,
+            height: 58,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CircularProgressIndicator(
+                  value: summary.readinessScore / 100,
+                  strokeWidth: 6,
+                  color: color,
+                  backgroundColor: Colors.white.withValues(alpha: 0.14),
+                  strokeCap: StrokeCap.round,
+                ),
+                Text(
+                  '${summary.readinessScore}',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary.readinessLabel,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${summary.activeDays}/7 active days / ${fmtDuration(summary.weeklyMovingSeconds)} load',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.72),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 12,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.insights_outlined, color: Colors.white),
+        ],
       ),
     );
   }

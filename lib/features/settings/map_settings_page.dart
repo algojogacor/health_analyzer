@@ -462,27 +462,30 @@ class _DownloadCard extends StatelessWidget {
               ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w900),
             ),
             const SizedBox(height: 12),
-            SegmentedButton<OfflineMapLayerChoice>(
-              showSelectedIcon: false,
-              segments: const [
-                ButtonSegment(
-                  value: OfflineMapLayerChoice.street,
-                  label: Text('Street'),
-                  icon: Icon(Icons.map_outlined),
-                ),
-                ButtonSegment(
-                  value: OfflineMapLayerChoice.satellite,
-                  label: Text('Satellite'),
-                  icon: Icon(Icons.satellite_alt_outlined),
-                ),
-                ButtonSegment(
-                  value: OfflineMapLayerChoice.both,
-                  label: Text('Both'),
-                  icon: Icon(Icons.layers_outlined),
-                ),
-              ],
-              selected: {layerChoice},
-              onSelectionChanged: (value) => onLayerChanged(value.first),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: SegmentedButton<OfflineMapLayerChoice>(
+                showSelectedIcon: false,
+                segments: const [
+                  ButtonSegment(
+                    value: OfflineMapLayerChoice.street,
+                    label: Text('Street'),
+                    icon: Icon(Icons.map_outlined),
+                  ),
+                  ButtonSegment(
+                    value: OfflineMapLayerChoice.satellite,
+                    label: Text('Satellite'),
+                    icon: Icon(Icons.satellite_alt_outlined),
+                  ),
+                  ButtonSegment(
+                    value: OfflineMapLayerChoice.both,
+                    label: Text('Both'),
+                    icon: Icon(Icons.layers_outlined),
+                  ),
+                ],
+                selected: {layerChoice},
+                onSelectionChanged: (value) => onLayerChanged(value.first),
+              ),
             ),
             const SizedBox(height: 16),
             Text(

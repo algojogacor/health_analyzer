@@ -18,16 +18,19 @@ class ActivityHistoryList extends ConsumerWidget {
     return history.when(
       data: (sessions) {
         if (sessions.isEmpty) {
-          return const PremiumCard(
+          return PremiumCard(
             child: Row(
               children: [
-                AccentIconBox(icon: Icons.route_outlined, color: AppTheme.cyan),
-                SizedBox(width: 12),
+                const AccentIconBox(
+                  icon: Icons.route_outlined,
+                  color: AppTheme.cyan,
+                ),
+                const SizedBox(width: 12),
                 Expanded(
                   child: Text(
                     'No saved activities yet. Start one outdoor or indoor session to build your training log.',
                     style: TextStyle(
-                      color: AppTheme.muted,
+                      color: AppTheme.mutedText(context),
                       fontWeight: FontWeight.w700,
                       height: 1.35,
                     ),
@@ -43,29 +46,29 @@ class ActivityHistoryList extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 10),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
                 child: Row(
                   children: [
-                    AccentIconBox(
+                    const AccentIconBox(
                       icon: Icons.history,
                       color: AppTheme.violet,
                       size: 34,
                     ),
-                    SizedBox(width: 12),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
+                          const Text(
                             'Activity history',
                             style: TextStyle(fontWeight: FontWeight.w900),
                           ),
-                          SizedBox(height: 2),
+                          const SizedBox(height: 2),
                           Text(
                             'Saved local workout summaries',
                             style: TextStyle(
-                              color: AppTheme.muted,
+                              color: AppTheme.mutedText(context),
                               fontSize: 12,
                             ),
                           ),

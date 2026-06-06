@@ -65,24 +65,43 @@ class _VoiceCoachSettingsPageState
         Card(
           child: Column(
             children: [
-              ListTile(
-                leading: const Icon(Icons.language_outlined),
-                title: const Text('Language'),
-                subtitle: Text(
-                  settings.languageCode == 'id-ID'
-                      ? 'Bahasa Indonesia'
-                      : 'English',
-                ),
-                trailing: SegmentedButton<String>(
-                  segments: const [
-                    ButtonSegment(value: 'id-ID', label: Text('ID')),
-                    ButtonSegment(value: 'en-US', label: Text('EN')),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Icon(Icons.language_outlined),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Language'),
+                              Text(
+                                settings.languageCode == 'id-ID'
+                                    ? 'Bahasa Indonesia'
+                                    : 'English',
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 10),
+                    SegmentedButton<String>(
+                      segments: const [
+                        ButtonSegment(value: 'id-ID', label: Text('ID')),
+                        ButtonSegment(value: 'en-US', label: Text('EN')),
+                      ],
+                      selected: {settings.languageCode},
+                      onSelectionChanged:
+                          (values) => _update(
+                            settings.copyWith(languageCode: values.first),
+                          ),
+                    ),
                   ],
-                  selected: {settings.languageCode},
-                  onSelectionChanged:
-                      (values) => _update(
-                        settings.copyWith(languageCode: values.first),
-                      ),
                 ),
               ),
               ListTile(

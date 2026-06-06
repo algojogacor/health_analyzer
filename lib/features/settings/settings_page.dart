@@ -64,7 +64,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 16),
         _SettingsTile(
           icon: Icons.contrast_outlined,
-          color: AppTheme.violet,
           title: 'Appearance',
           subtitle: 'System, light, or dark mode',
           onTap: () {
@@ -76,7 +75,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.lock_outline,
-          color: AppTheme.cyan,
           title: 'Privacy defaults',
           subtitle: 'Route visibility, hidden radius, and sync',
           onTap: () {
@@ -88,7 +86,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.flag_outlined,
-          color: AppTheme.mint,
           title: 'Weekly goals',
           subtitle: 'Steps, active days, minutes, distance',
           onTap: () {
@@ -100,7 +97,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.event_note_outlined,
-          color: AppTheme.amber,
           title: 'Training plan',
           subtitle: '5K, 10K, and half-marathon templates',
           onTap: () {
@@ -112,7 +108,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.monitor_heart_outlined,
-          color: AppTheme.coral,
           title: 'Profile and HR zones',
           subtitle: 'Max HR, resting HR, zone calculation',
           onTap: () {
@@ -124,7 +119,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.auto_awesome_outlined,
-          color: AppTheme.violet,
           title: 'AI settings',
           subtitle: 'Provider, base URL, model, API key',
           onTap: () {
@@ -136,7 +130,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.notifications_active_outlined,
-          color: AppTheme.cyan,
           title: 'Notifications',
           subtitle: 'Sync, recovery, PR, streak, training plan',
           onTap: () {
@@ -150,7 +143,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.record_voice_over_outlined,
-          color: AppTheme.mint,
           title: 'Voice coach',
           subtitle: 'Offline TTS cues for recording events',
           onTap: () {
@@ -162,7 +154,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.public,
-          color: AppTheme.amber,
           title: 'Community backend',
           subtitle: 'Koyeb URL for share cards and challenges',
           onTap: () {
@@ -174,7 +165,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.developer_mode,
-          color: AppTheme.violet,
           title: 'External AI agent',
           subtitle: 'Optional Termux, Telegram, ZeroClaw setup',
           onTap: () {
@@ -186,7 +176,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.archive_outlined,
-          color: AppTheme.cyan,
           title: 'Data export',
           subtitle: 'ZIP with JSON, GPX, and summaries',
           onTap: () {
@@ -198,7 +187,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.webhook_outlined,
-          color: AppTheme.mint,
           title: 'Webhook outbound',
           subtitle: 'Send sanitized events to your own URL',
           onTap: () {
@@ -210,7 +198,6 @@ class SettingsPage extends StatelessWidget {
         const SizedBox(height: 12),
         _SettingsTile(
           icon: Icons.map_outlined,
-          color: AppTheme.coral,
           title: 'Map and offline',
           subtitle: 'GPS offline behavior and map downloads',
           onTap: () {
@@ -251,14 +238,12 @@ class SettingsPage extends StatelessWidget {
 
 class _SettingsTile extends StatelessWidget {
   final IconData icon;
-  final Color color;
   final String title;
   final String subtitle;
   final VoidCallback onTap;
 
   const _SettingsTile({
     required this.icon,
-    required this.color,
     required this.title,
     required this.subtitle,
     required this.onTap,
@@ -273,7 +258,11 @@ class _SettingsTile extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         child: Row(
           children: [
-            AccentIconBox(icon: icon, color: color, size: 38),
+            AccentIconBox(
+              icon: icon,
+              color: AppTheme.accent(context),
+              size: 38,
+            ),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

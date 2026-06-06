@@ -22,6 +22,7 @@ Requirements:
 - Flutter SDK compatible with `pubspec.yaml`
 - Android SDK for Android builds
 - Node.js 20+ for the Koyeb gateway
+- A test Android device or emulator for UI/permission changes
 
 Common commands:
 
@@ -31,6 +32,7 @@ flutter analyze
 flutter test
 flutter build apk --debug
 node --check koyeb_gateway/server.js
+cd koyeb_gateway && npm test
 ```
 
 If Drift generated files become stale:
@@ -47,10 +49,19 @@ Before opening a PR:
 - Run `flutter test`.
 - Run `flutter build apk --debug` for app-facing changes.
 - Run `node --check koyeb_gateway/server.js` for gateway changes.
+- Run `cd koyeb_gateway && npm test` for gateway behavior changes.
 - Add or update tests when behavior changes.
 - Update docs when changing privacy, sync, AI, map, or data contracts.
 - Confirm no secrets, tokens, keystores, local databases, screenshots, or health
   exports are committed.
+
+For UI changes:
+
+- Check both dark and light mode when practical.
+- Avoid cramped rows that force labels to wrap one character per line.
+- Keep the primary action on each screen obvious.
+- Prefer unavailable/sensor-not-found states over empty or misleading cards.
+- Verify on a real Android screen when the change affects layout density.
 
 ## Sensitive Areas
 
@@ -70,6 +81,19 @@ Ask for extra review when changing:
 - Keep UI readable in dark and light mode.
 - Prefer explicit unavailable states over silent failures.
 - Avoid large unrelated refactors in feature PRs.
+- Keep feature files focused; shared UI primitives belong under `lib/shared/`.
+- Use sanitized summaries for AI/community flows unless raw sharing is clearly
+  user-enabled.
+
+## Local Files To Avoid
+
+Do not commit generated or personal files such as:
+
+- `build/`, `.dart_tool/`, `.gradle/`
+- APKs generated outside release automation
+- `auth.json`, `.env`, Turso tokens, AI keys, Telegram tokens
+- `.sqlite`, `.db`, `.gpx`, `.pmtiles`, exports, screenshots with personal data
+- Internal planning files ignored under `docs/`
 
 ## License
 

@@ -709,9 +709,15 @@ class _ManualLapsPanel extends StatelessWidget {
                 4: FlexColumnWidth(),
               },
               children: [
-                _lapRow(['#', 'Dist', 'Time', 'Pace', 'HR'], header: true),
+                _lapRow(context, [
+                  '#',
+                  'Dist',
+                  'Time',
+                  'Pace',
+                  'HR',
+                ], header: true),
                 for (final lap in laps)
-                  _lapRow([
+                  _lapRow(context, [
                     '${lap.index}',
                     '${(lap.distanceMeters / 1000).toStringAsFixed(2)} km',
                     fmtDuration(lap.elapsedSeconds),
@@ -728,11 +734,15 @@ class _ManualLapsPanel extends StatelessWidget {
     );
   }
 
-  TableRow _lapRow(List<String> cells, {bool header = false}) {
+  TableRow _lapRow(
+    BuildContext context,
+    List<String> cells, {
+    bool header = false,
+  }) {
     final style =
         header
-            ? const TextStyle(
-              color: AppTheme.muted,
+            ? TextStyle(
+              color: AppTheme.mutedText(context),
               fontWeight: FontWeight.w800,
               fontSize: 12,
             )

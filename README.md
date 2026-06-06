@@ -5,23 +5,47 @@ intelligence. It records workouts, collects Health Connect data, syncs to a
 user-owned Turso database, and provides AI-assisted summaries while keeping raw
 health and route data under user control.
 
-The project is early-stage and open source under the Apache License 2.0.
+The project is early-stage and open source under the Apache License 2.0. The
+current product direction is a privacy-first personal fitness intelligence app:
+the phone is the main experience, user-owned Turso is the personal sync layer,
+and Koyeb is only for sanitized community/share features.
+
+## Current Status
+
+Health Analyzer is usable as a developer-installed Android APK, but it is still
+alpha software. Expect rapid UI iteration, schema changes, and device-specific
+wearable quirks. Missing smartwatch sensors are handled as unavailable states;
+the app should not invent values.
 
 ## What It Does
 
 - Collects health data from Android Health Connect.
 - Works with smartwatch/wearable data exposed through Health Connect, including
   Xiaomi Smart Band 9 Active via Mi Fitness sync.
-- Records outdoor GPS activities with foreground-service support.
-- Stores local activity sessions, points, summaries, AI usage, routes, and
-  settings in Drift/SQLite.
+- Records outdoor GPS activities and indoor workout summaries.
+- Stores local activity sessions, points, summaries, AI usage, routes, settings,
+  and map metadata in Drift/SQLite.
 - Syncs user-owned data to Turso.
 - Provides AI coach features through configurable OpenAI-compatible providers.
+- Falls back to local rule-based summaries when cloud AI is unavailable.
 - Supports Koyeb as a lightweight community/share gateway.
 - Supports online street/satellite maps and regional offline raster PMTiles map
   packs.
 - Includes optional Termux/Telegram/ZeroClaw-style external agent docs for power
   users.
+
+## Core Experiences
+
+- **Dashboard** - daily health signals, recovery snapshot, recent activity, and
+  data confidence.
+- **Activity** - sport picker, GPS/indoor recording flow, maps, route tools,
+  saved routes, and history.
+- **Insights** - readiness, training load, goals, plan status, VO2 trend, and
+  personal records.
+- **AI Coach** - structured health/activity questions with privacy-aware local
+  tools and optional cloud LLM support.
+- **Community** - sanitized share cards, lightweight profile/challenge gateway,
+  and local-only interest controls.
 
 ## Privacy Model
 
@@ -65,6 +89,12 @@ build/app/outputs/flutter-apk/app-debug.apk
 
 Install and setup instructions are in [docs/INSTALLATION.md](docs/INSTALLATION.md).
 
+For a developer USB install on Windows:
+
+```powershell
+.\scripts\install_android_debug.ps1 -Build -Launch
+```
+
 ## Koyeb Gateway
 
 The community gateway lives in `koyeb_gateway/`.
@@ -107,6 +137,10 @@ own:
 The default product direction uses summarized context and local rule-based
 fallbacks when cloud AI is unavailable.
 
+Examples of compatible providers include DeepSeek, OpenAI-compatible gateways,
+OpenRouter, Groq, Qwen-compatible endpoints, and self-hosted compatible APIs.
+Provider behavior depends on the provider's API compatibility and model support.
+
 ## Development Notes
 
 Useful commands:
@@ -116,6 +150,7 @@ flutter analyze
 flutter test
 flutter build apk --debug
 node --check koyeb_gateway/server.js
+cd koyeb_gateway && npm test
 ```
 
 Regenerate Drift code when schema changes:
@@ -129,6 +164,9 @@ dart run build_runner build --delete-conflicting-outputs
 Read [CONTRIBUTING.md](CONTRIBUTING.md), [SECURITY.md](SECURITY.md), and
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md) before contributing. The intended
 data model is documented in [PRIVACY.md](PRIVACY.md).
+
+Before publishing screenshots, issues, or PRs, remove personal health data,
+route locations, tokens, and local database exports.
 
 ## License
 

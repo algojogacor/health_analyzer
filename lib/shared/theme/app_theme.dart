@@ -1,23 +1,34 @@
 import 'package:flutter/material.dart';
 
 class AppTheme {
-  static const ink = Color(0xFF172026);
-  static const muted = Color(0xFF6C7780);
-  static const line = Color(0xFFE6EAED);
-  static const canvas = Color(0xFFF5F8F9);
+  static const ink = Color(0xFF1D1D1F);
+  static const muted = Color(0xFF6E6E73);
+  static const subtle = Color(0xFF8E8E93);
+  static const line = Color(0xFFE0E0E0);
+  static const canvas = Color(0xFFF5F5F7);
   static const surface = Colors.white;
-  static const surfaceSoft = Color(0xFFEEF4F5);
-  static const cyan = Color(0xFF20B8D6);
-  static const mint = Color(0xFF31C48D);
-  static const coral = Color(0xFFFF4D5E);
-  static const amber = Color(0xFFFFB020);
-  static const violet = Color(0xFF7C5CFF);
-  static const darkInk = Color(0xFFF4F7F8);
-  static const darkMuted = Color(0xFFAAB7BE);
-  static const darkLine = Color(0xFF2A3941);
-  static const darkCanvas = Color(0xFF0C1418);
-  static const darkSurface = Color(0xFF121E24);
-  static const darkSurfaceSoft = Color(0xFF18262D);
+  static const surfaceSoft = Color(0xFFFAFAFA);
+  static const accentLight = Color(0xFF059669);
+  static const accentDark = Color(0xFF10B981);
+  static const accentHoverLight = Color(0xFF047857);
+  static const accentHoverDark = Color(0xFF34D399);
+  static const accentMutedLight = Color(0xFFD1FAE5);
+  static const accentMutedDark = Color(0xFF064E3B);
+  static const cyan = accentDark;
+  static const mint = Color(0xFF22C55E);
+  static const coral = Color(0xFFEF4444);
+  static const amber = Color(0xFFF59E0B);
+  static const violet = Color(0xFF10B981);
+  static const electric = Color(0xFF34D399);
+  static const darkInk = Color(0xFFF4F4F6);
+  static const darkMuted = Color(0xFFA1A1AA);
+  static const darkSubtle = Color(0xFF71717A);
+  static const darkLine = Color(0xFF27272A);
+  static const darkCanvas = Color(0xFF08080C);
+  static const darkSurface = Color(0xFF0F0F14);
+  static const darkSurfaceSoft = Color(0xFF16161C);
+  static const commandLight = Color(0xFF1D1D1F);
+  static const commandDark = Color(0xFF050508);
 
   static bool isDark(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark;
@@ -26,6 +37,9 @@ class AppTheme {
 
   static Color mutedText(BuildContext context) =>
       isDark(context) ? darkMuted : muted;
+
+  static Color subtleText(BuildContext context) =>
+      isDark(context) ? darkSubtle : subtle;
 
   static Color border(BuildContext context) =>
       isDark(context) ? darkLine : line;
@@ -44,6 +58,20 @@ class AppTheme {
   static Color onInverse(BuildContext context) =>
       isDark(context) ? darkCanvas : Colors.white;
 
+  static Color commandSurface(BuildContext context) =>
+      isDark(context) ? commandDark : commandLight;
+
+  static Color onCommand(BuildContext context) => Colors.white;
+
+  static Color accent(BuildContext context) =>
+      isDark(context) ? accentDark : accentLight;
+
+  static Color accentHover(BuildContext context) =>
+      isDark(context) ? accentHoverDark : accentHoverLight;
+
+  static Color accentMuted(BuildContext context) =>
+      isDark(context) ? accentMutedDark : accentMutedLight;
+
   static Color subtleTint(
     BuildContext context,
     Color color, [
@@ -55,10 +83,10 @@ class AppTheme {
 
   static ThemeData light() {
     final scheme = ColorScheme.fromSeed(
-      seedColor: cyan,
+      seedColor: accentLight,
       brightness: Brightness.light,
-      primary: cyan,
-      secondary: coral,
+      primary: accentLight,
+      secondary: accentHoverLight,
       surface: surface,
       error: coral,
     );
@@ -70,13 +98,13 @@ class AppTheme {
       scaffoldBackgroundColor: canvas,
       fontFamily: 'Roboto',
       textTheme: const TextTheme(
-        displaySmall: TextStyle(fontWeight: FontWeight.w900, color: ink),
-        headlineSmall: TextStyle(fontWeight: FontWeight.w900, color: ink),
-        titleLarge: TextStyle(fontWeight: FontWeight.w900, color: ink),
-        titleMedium: TextStyle(fontWeight: FontWeight.w800, color: ink),
+        displaySmall: TextStyle(fontWeight: FontWeight.w600, color: ink),
+        headlineSmall: TextStyle(fontWeight: FontWeight.w600, color: ink),
+        titleLarge: TextStyle(fontWeight: FontWeight.w600, color: ink),
+        titleMedium: TextStyle(fontWeight: FontWeight.w600, color: ink),
         bodyMedium: TextStyle(color: ink),
-        bodySmall: TextStyle(color: muted, fontWeight: FontWeight.w600),
-        labelLarge: TextStyle(fontWeight: FontWeight.w800),
+        bodySmall: TextStyle(color: muted, fontWeight: FontWeight.w400),
+        labelLarge: TextStyle(fontWeight: FontWeight.w500),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: Colors.white,
@@ -87,26 +115,26 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: ink,
           fontSize: 24,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w600,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: Colors.white,
-        indicatorColor: cyan.withValues(alpha: 0.14),
+        indicatorColor: accentMutedLight,
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.selected) ? ink : muted,
             fontWeight:
                 states.contains(WidgetState.selected)
-                    ? FontWeight.w900
-                    : FontWeight.w700,
+                    ? FontWeight.w600
+                    : FontWeight.w400,
             fontSize: 12,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            color: states.contains(WidgetState.selected) ? ink : muted,
+            color: states.contains(WidgetState.selected) ? accentLight : muted,
             size: 24,
           ),
         ),
@@ -126,7 +154,7 @@ class AppTheme {
           foregroundColor: Colors.white,
           minimumSize: const Size(48, 48),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          textStyle: const TextStyle(fontWeight: FontWeight.w500),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -135,13 +163,13 @@ class AppTheme {
           minimumSize: const Size(48, 48),
           side: const BorderSide(color: line),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(fontWeight: FontWeight.w500),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: cyan,
-          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          foregroundColor: accentLight,
+          textStyle: const TextStyle(fontWeight: FontWeight.w500),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -159,7 +187,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: cyan, width: 1.4),
+          borderSide: const BorderSide(color: accentLight, width: 1.4),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -170,26 +198,26 @@ class AppTheme {
           backgroundColor: WidgetStateProperty.resolveWith(
             (states) =>
                 states.contains(WidgetState.selected)
-                    ? cyan.withValues(alpha: 0.12)
+                    ? accentMutedLight
                     : surface,
           ),
           side: WidgetStateProperty.all(const BorderSide(color: line)),
           textStyle: WidgetStateProperty.all(
-            const TextStyle(fontWeight: FontWeight.w900),
+            const TextStyle(fontWeight: FontWeight.w500),
           ),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surfaceSoft,
-        selectedColor: cyan.withValues(alpha: 0.14),
+        selectedColor: accentMutedLight,
         disabledColor: line,
         side: const BorderSide(color: line),
-        labelStyle: const TextStyle(color: ink, fontWeight: FontWeight.w800),
+        labelStyle: const TextStyle(color: ink, fontWeight: FontWeight.w500),
         secondaryLabelStyle: const TextStyle(
           color: ink,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w500,
         ),
-        iconTheme: const IconThemeData(color: cyan),
+        iconTheme: const IconThemeData(color: accentLight),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       snackBarTheme: SnackBarThemeData(
@@ -204,10 +232,10 @@ class AppTheme {
 
   static ThemeData dark() {
     final scheme = ColorScheme.fromSeed(
-      seedColor: cyan,
+      seedColor: accentDark,
       brightness: Brightness.dark,
-      primary: cyan,
-      secondary: coral,
+      primary: accentDark,
+      secondary: accentHoverDark,
       surface: darkSurface,
       error: coral,
     );
@@ -219,13 +247,13 @@ class AppTheme {
       scaffoldBackgroundColor: darkCanvas,
       fontFamily: 'Roboto',
       textTheme: const TextTheme(
-        displaySmall: TextStyle(fontWeight: FontWeight.w900, color: darkInk),
-        headlineSmall: TextStyle(fontWeight: FontWeight.w900, color: darkInk),
-        titleLarge: TextStyle(fontWeight: FontWeight.w900, color: darkInk),
-        titleMedium: TextStyle(fontWeight: FontWeight.w800, color: darkInk),
+        displaySmall: TextStyle(fontWeight: FontWeight.w600, color: darkInk),
+        headlineSmall: TextStyle(fontWeight: FontWeight.w600, color: darkInk),
+        titleLarge: TextStyle(fontWeight: FontWeight.w600, color: darkInk),
+        titleMedium: TextStyle(fontWeight: FontWeight.w600, color: darkInk),
         bodyMedium: TextStyle(color: darkInk),
-        bodySmall: TextStyle(color: darkMuted, fontWeight: FontWeight.w600),
-        labelLarge: TextStyle(fontWeight: FontWeight.w800),
+        bodySmall: TextStyle(color: darkMuted, fontWeight: FontWeight.w400),
+        labelLarge: TextStyle(fontWeight: FontWeight.w500),
       ),
       appBarTheme: const AppBarTheme(
         backgroundColor: darkSurface,
@@ -236,26 +264,27 @@ class AppTheme {
         titleTextStyle: TextStyle(
           color: darkInk,
           fontSize: 24,
-          fontWeight: FontWeight.w900,
+          fontWeight: FontWeight.w600,
         ),
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: darkSurface,
-        indicatorColor: cyan.withValues(alpha: 0.18),
+        indicatorColor: accentMutedDark,
         elevation: 0,
         labelTextStyle: WidgetStateProperty.resolveWith(
           (states) => TextStyle(
             color: states.contains(WidgetState.selected) ? darkInk : darkMuted,
             fontWeight:
                 states.contains(WidgetState.selected)
-                    ? FontWeight.w900
-                    : FontWeight.w700,
+                    ? FontWeight.w600
+                    : FontWeight.w400,
             fontSize: 12,
           ),
         ),
         iconTheme: WidgetStateProperty.resolveWith(
           (states) => IconThemeData(
-            color: states.contains(WidgetState.selected) ? darkInk : darkMuted,
+            color:
+                states.contains(WidgetState.selected) ? accentDark : darkMuted,
             size: 24,
           ),
         ),
@@ -271,11 +300,11 @@ class AppTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
-          backgroundColor: cyan,
-          foregroundColor: Colors.black,
+          backgroundColor: accentDark,
+          foregroundColor: darkCanvas,
           minimumSize: const Size(48, 48),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          textStyle: const TextStyle(fontWeight: FontWeight.w500),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
@@ -284,13 +313,13 @@ class AppTheme {
           minimumSize: const Size(48, 48),
           side: const BorderSide(color: darkLine),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          textStyle: const TextStyle(fontWeight: FontWeight.w800),
+          textStyle: const TextStyle(fontWeight: FontWeight.w500),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: cyan,
-          textStyle: const TextStyle(fontWeight: FontWeight.w900),
+          foregroundColor: accentDark,
+          textStyle: const TextStyle(fontWeight: FontWeight.w500),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -298,7 +327,7 @@ class AppTheme {
         fillColor: darkSurface,
         labelStyle: const TextStyle(
           color: darkMuted,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w500,
         ),
         hintStyle: const TextStyle(color: darkMuted),
         border: OutlineInputBorder(
@@ -311,7 +340,7 @@ class AppTheme {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: cyan, width: 1.4),
+          borderSide: const BorderSide(color: accentDark, width: 1.4),
         ),
       ),
       segmentedButtonTheme: SegmentedButtonThemeData(
@@ -323,29 +352,29 @@ class AppTheme {
           backgroundColor: WidgetStateProperty.resolveWith(
             (states) =>
                 states.contains(WidgetState.selected)
-                    ? cyan.withValues(alpha: 0.18)
+                    ? accentMutedDark
                     : darkSurface,
           ),
           side: WidgetStateProperty.all(const BorderSide(color: darkLine)),
           textStyle: WidgetStateProperty.all(
-            const TextStyle(fontWeight: FontWeight.w900),
+            const TextStyle(fontWeight: FontWeight.w500),
           ),
         ),
       ),
       chipTheme: ChipThemeData(
         backgroundColor: darkSurfaceSoft,
-        selectedColor: cyan.withValues(alpha: 0.20),
+        selectedColor: accentMutedDark,
         disabledColor: darkLine,
         side: const BorderSide(color: darkLine),
         labelStyle: const TextStyle(
           color: darkInk,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w500,
         ),
         secondaryLabelStyle: const TextStyle(
           color: darkInk,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w500,
         ),
-        iconTheme: const IconThemeData(color: cyan),
+        iconTheme: const IconThemeData(color: accentDark),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
       ),
       snackBarTheme: SnackBarThemeData(

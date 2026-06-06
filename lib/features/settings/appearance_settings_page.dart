@@ -21,7 +21,7 @@ class AppearanceSettingsPage extends ConsumerWidget {
                   icon: Icons.contrast_outlined,
                   title: 'Theme mode',
                   body:
-                      'Choose system, light, or dark mode. This is stored locally and applies across the native app.',
+                      'Health Analyzer follows your phone by default, with JalaJO light and dark palettes available anytime.',
                 ),
                 const SizedBox(height: 16),
                 Card(
@@ -35,27 +35,30 @@ class AppearanceSettingsPage extends ConsumerWidget {
                           style: Theme.of(context).textTheme.titleMedium,
                         ),
                         const SizedBox(height: 14),
-                        SegmentedButton<ThemeMode>(
-                          segments: const [
-                            ButtonSegment(
-                              value: ThemeMode.system,
-                              icon: Icon(Icons.phone_android_outlined),
-                              label: Text('System'),
-                            ),
-                            ButtonSegment(
-                              value: ThemeMode.light,
-                              icon: Icon(Icons.light_mode_outlined),
-                              label: Text('Light'),
-                            ),
-                            ButtonSegment(
-                              value: ThemeMode.dark,
-                              icon: Icon(Icons.dark_mode_outlined),
-                              label: Text('Dark'),
-                            ),
-                          ],
-                          selected: {mode},
-                          onSelectionChanged:
-                              (selection) => _save(ref, selection.first),
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: SegmentedButton<ThemeMode>(
+                            segments: const [
+                              ButtonSegment(
+                                value: ThemeMode.system,
+                                icon: Icon(Icons.phone_android_outlined),
+                                label: Text('System'),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.light,
+                                icon: Icon(Icons.light_mode_outlined),
+                                label: Text('Light'),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.dark,
+                                icon: Icon(Icons.dark_mode_outlined),
+                                label: Text('Dark'),
+                              ),
+                            ],
+                            selected: {mode},
+                            onSelectionChanged:
+                                (selection) => _save(ref, selection.first),
+                          ),
                         ),
                       ],
                     ),

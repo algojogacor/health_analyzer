@@ -32,10 +32,10 @@ class PremiumCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: (dark ? Colors.black : AppTheme.ink).withValues(
-              alpha: dark ? 0.24 : 0.055,
+              alpha: dark ? 0.10 : 0.035,
             ),
-            blurRadius: 22,
-            offset: const Offset(0, 10),
+            blurRadius: 14,
+            offset: const Offset(0, 6),
           ),
         ],
       ),

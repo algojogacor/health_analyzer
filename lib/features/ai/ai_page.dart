@@ -95,21 +95,13 @@ class _AiPageState extends ConsumerState<AiPage> {
                           model: value.model,
                           insights: insights.valueOrNull,
                         )
-                        : InfoPanel(
-                          icon: Icons.key_outlined,
-                          title: 'Cloud AI is not configured',
-                          body:
-                              'Add your own OpenAI-compatible key to enable cloud chat. Local summaries and privacy tools are still available.',
-                          action: TextButton.icon(
-                            onPressed:
-                                () => Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (_) => const AiSettingsPage(),
-                                  ),
+                        : _CloudSetupCard(
+                          onPressed:
+                              () => Navigator.of(context).push(
+                                MaterialPageRoute(
+                                  builder: (_) => const AiSettingsPage(),
                                 ),
-                            icon: const Icon(Icons.settings),
-                            label: const Text('Configure'),
-                          ),
+                              ),
                         ),
             loading: () => const LinearProgressIndicator(),
             error:
@@ -267,6 +259,68 @@ class _AiPageState extends ConsumerState<AiPage> {
   }
 }
 
+class _CloudSetupCard extends StatelessWidget {
+  final VoidCallback onPressed;
+
+  const _CloudSetupCard({required this.onPressed});
+
+  @override
+  Widget build(BuildContext context) {
+    return PremiumCard(
+      color: AppTheme.commandSurface(context),
+      borderColor: AppTheme.commandSurface(context),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const AccentIconBox(
+            icon: Icons.key_outlined,
+            color: AppTheme.electric,
+            size: 42,
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Cloud AI is not configured',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w900,
+                    fontSize: 18,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Add your own OpenAI-compatible key for chat. Local summaries, data quality checks, and privacy guard stay available.',
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.78),
+                    height: 1.42,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                FilledButton.icon(
+                  onPressed: onPressed,
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppTheme.accent(context),
+                    foregroundColor:
+                        AppTheme.isDark(context)
+                            ? AppTheme.darkCanvas
+                            : Colors.white,
+                  ),
+                  icon: const Icon(Icons.settings),
+                  label: const Text('Configure AI'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _CoachCards extends StatelessWidget {
   final int recordCount;
   final String confidence;
@@ -284,79 +338,129 @@ class _CoachCards extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GridView(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 2,
-        mainAxisExtent: 118,
-        crossAxisSpacing: 12,
-        mainAxisSpacing: 12,
+    final accent = AppTheme.accent(context);
+    return PremiumCard(
+      color: AppTheme.commandSurface(context),
+      borderColor: AppTheme.commandSurface(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              AccentIconBox(icon: Icons.auto_awesome, color: accent, size: 42),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'AI coach ready',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w900,
+                        fontSize: 20,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$provider / $model',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'It reads summarized health context first, keeps raw route private by default, and falls back to local rules when cloud AI is unavailable.',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.78),
+              height: 1.38,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+          const SizedBox(height: 16),
+          _CoachSignalRow(
+            icon: Icons.fact_check_outlined,
+            label: 'Data quality',
+            value: '$recordCount records / $confidence',
+          ),
+          const SizedBox(height: 8),
+          _CoachSignalRow(
+            icon: Icons.favorite_border,
+            label: 'Recovery',
+            value:
+                insights == null
+                    ? 'Waiting for baseline'
+                    : '${insights!.readinessScore} / ${insights!.readinessLabel}',
+          ),
+          const SizedBox(height: 8),
+          const _CoachSignalRow(
+            icon: Icons.verified_user_outlined,
+            label: 'Privacy',
+            value: 'Sanitized context',
+          ),
+        ],
       ),
-      children: [
-        _CoachCard(
-          icon: Icons.auto_awesome,
-          title: 'AI Summary',
-          body: '$provider / $model',
-          color: AppTheme.violet,
-        ),
-        _CoachCard(
-          icon: Icons.verified_user_outlined,
-          title: 'Privacy Guard',
-          body: 'Sanitized context',
-          color: AppTheme.cyan,
-        ),
-        _CoachCard(
-          icon: Icons.fact_check_outlined,
-          title: 'Data Quality',
-          body: '$recordCount records',
-          color: AppTheme.amber,
-        ),
-        _CoachCard(
-          icon: Icons.favorite_border,
-          title: 'Recovery',
-          body:
-              insights == null
-                  ? confidence
-                  : '${insights!.readinessScore} / ${insights!.readinessLabel}',
-          color: AppTheme.coral,
-        ),
-      ],
     );
   }
 }
 
-class _CoachCard extends StatelessWidget {
+class _CoachSignalRow extends StatelessWidget {
   final IconData icon;
-  final String title;
-  final String body;
-  final Color color;
+  final String label;
+  final String value;
 
-  const _CoachCard({
+  const _CoachSignalRow({
     required this.icon,
-    required this.title,
-    required this.body,
-    required this.color,
+    required this.label,
+    required this.value,
   });
 
   @override
   Widget build(BuildContext context) {
-    return PremiumCard(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          AccentIconBox(icon: icon, color: color, size: 34),
-          const Spacer(),
-          Text(title, style: const TextStyle(fontWeight: FontWeight.w900)),
-          const SizedBox(height: 3),
-          Text(
-            body,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(color: AppTheme.mutedText(context)),
-          ),
-        ],
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.10)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+        child: Row(
+          children: [
+            Icon(icon, color: AppTheme.accentDark, size: 19),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.70),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Flexible(
+              child: Text(
+                value,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.right,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -412,34 +516,42 @@ class _ContextPicker extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SegmentedButton<String>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(
-                value: 'daily',
-                icon: Icon(Icons.today_outlined),
-                label: Text('Daily'),
-              ),
-              ButtonSegment(
-                value: 'activity',
-                icon: Icon(Icons.route),
-                label: Text('Latest'),
-              ),
-              ButtonSegment(
-                value: 'gaps',
-                icon: Icon(Icons.fact_check_outlined),
-                label: Text('Gaps'),
-              ),
-            ],
-            selected: {selected},
-            onSelectionChanged: busy ? null : (value) => onChanged(value.first),
+          const Text(
+            'Ask with context',
+            style: TextStyle(fontWeight: FontWeight.w900, fontSize: 16),
+          ),
+          const SizedBox(height: 10),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: 'daily',
+                  icon: Icon(Icons.today_outlined),
+                  label: Text('Daily'),
+                ),
+                ButtonSegment(
+                  value: 'activity',
+                  icon: Icon(Icons.route),
+                  label: Text('Latest'),
+                ),
+                ButtonSegment(
+                  value: 'gaps',
+                  icon: Icon(Icons.fact_check_outlined),
+                  label: Text('Gaps'),
+                ),
+              ],
+              selected: {selected},
+              onSelectionChanged:
+                  busy ? null : (value) => onChanged(value.first),
+            ),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _PromptChip(
+              _PromptButton(
                 label: 'What should I do today?',
                 onTap:
                     () => onPrompt(
@@ -447,7 +559,8 @@ class _ContextPicker extends StatelessWidget {
                       'daily',
                     ),
               ),
-              _PromptChip(
+              const SizedBox(height: 8),
+              _PromptButton(
                 label: 'Explain my data gaps',
                 onTap:
                     () => onPrompt(
@@ -455,7 +568,8 @@ class _ContextPicker extends StatelessWidget {
                       'gaps',
                     ),
               ),
-              _PromptChip(
+              const SizedBox(height: 8),
+              _PromptButton(
                 label: 'Review latest workout',
                 onTap:
                     () => onPrompt(
@@ -471,23 +585,42 @@ class _ContextPicker extends StatelessWidget {
   }
 }
 
-class _PromptChip extends StatelessWidget {
+class _PromptButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  const _PromptChip({required this.label, required this.onTap});
+  const _PromptButton({required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return ActionChip(
-      onPressed: onTap,
-      avatar: const Icon(Icons.auto_awesome, size: 16),
-      label: Text(label),
-      backgroundColor: AppTheme.softSurface(context),
-      side: BorderSide(color: AppTheme.border(context)),
-      labelStyle: TextStyle(
-        color: AppTheme.text(context),
-        fontWeight: FontWeight.w800,
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 44),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: AppTheme.softSurface(context),
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: AppTheme.border(context)),
+        ),
+        child: Row(
+          children: [
+            Icon(Icons.auto_awesome, size: 17, color: AppTheme.accent(context)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: AppTheme.text(context),
+                  fontWeight: FontWeight.w900,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -504,11 +637,11 @@ class _MessageBubble extends StatelessWidget {
     final dark = AppTheme.isDark(context);
     final background =
         isUser
-            ? AppTheme.cyan.withValues(alpha: dark ? 0.22 : 0.10)
+            ? AppTheme.accent(context).withValues(alpha: dark ? 0.22 : 0.10)
             : AppTheme.card(context);
     final border =
         isUser
-            ? AppTheme.cyan.withValues(alpha: dark ? 0.44 : 0.24)
+            ? AppTheme.accent(context).withValues(alpha: dark ? 0.44 : 0.24)
             : AppTheme.border(context);
     return Align(
       alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,

@@ -147,7 +147,23 @@ class _HomePageState extends ConsumerState<HomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(title),
+        title: Row(
+          children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(999),
+              child: Image.asset(
+                'assets/brand/jalajo-logo.png',
+                width: 32,
+                height: 32,
+                fit: BoxFit.cover,
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
         centerTitle: false,
         actions: [
           IconButton(
@@ -660,10 +676,21 @@ class _DashboardBody extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AnimatedSection(index: 0, child: HeroPanel(summary: summary)),
-                  if (insightSummary != null) ...[
+                  if (preferences.isVisible('recent_activity') &&
+                      recentActivity != null) ...[
                     const SizedBox(height: 16),
                     AnimatedSection(
                       index: 1,
+                      child: _RecentActivityCard(
+                        session: recentActivity!,
+                        onTap: onRecentActivityTap,
+                      ),
+                    ),
+                  ],
+                  if (insightSummary != null) ...[
+                    const SizedBox(height: 16),
+                    AnimatedSection(
+                      index: 2,
                       child: _InsightSnapshotCard(
                         summary: insightSummary!,
                         goals: goals,
@@ -672,27 +699,20 @@ class _DashboardBody extends StatelessWidget {
                   ],
                   const SizedBox(height: 20),
                   AnimatedSection(
-                    index: 2,
-                    child: Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            'Widgets',
-                            style: Theme.of(context).textTheme.titleLarge
-                                ?.copyWith(fontWeight: FontWeight.w900),
-                          ),
-                        ),
-                        TextButton.icon(
-                          onPressed: onCustomizeDashboard,
-                          icon: const Icon(Icons.tune),
-                          label: const Text('Customize'),
-                        ),
-                      ],
+                    index: 3,
+                    child: _DashboardSectionHeader(
+                      title: 'Health signals',
+                      subtitle: 'Today’s wearable, workout, and recovery data',
+                      action: TextButton.icon(
+                        onPressed: onCustomizeDashboard,
+                        icon: const Icon(Icons.tune),
+                        label: const Text('Customize'),
+                      ),
                     ),
                   ),
                   const SizedBox(height: 12),
                   AnimatedSection(
-                    index: 3,
+                    index: 4,
                     child: MetricGrid(
                       summary: summary,
                       preferences: preferences,
@@ -701,21 +721,21 @@ class _DashboardBody extends StatelessWidget {
                       onMetricTap: onMetricTap,
                     ),
                   ),
-                  if (preferences.isVisible('recent_activity') &&
-                      recentActivity != null) ...[
-                    const SizedBox(height: 16),
-                    AnimatedSection(
-                      index: 4,
-                      child: _RecentActivityCard(
-                        session: recentActivity!,
-                        onTap: onRecentActivityTap,
-                      ),
-                    ),
-                  ],
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 20),
                   AnimatedSection(
                     index: 5,
-                    child: QualityPanel(summary: summary),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const _DashboardSectionHeader(
+                          title: 'Data confidence',
+                          subtitle:
+                              'What the app can trust before AI or insights use it',
+                        ),
+                        const SizedBox(height: 12),
+                        QualityPanel(summary: summary),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -731,6 +751,50 @@ class _DashboardBody extends StatelessWidget {
                 body: error.toString(),
               ),
         ),
+      ],
+    );
+  }
+}
+
+class _DashboardSectionHeader extends StatelessWidget {
+  final String title;
+  final String subtitle;
+  final Widget? action;
+
+  const _DashboardSectionHeader({
+    required this.title,
+    required this.subtitle,
+    this.action,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: Theme.of(
+                  context,
+                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900),
+              ),
+              const SizedBox(height: 3),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: AppTheme.mutedText(context),
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (action != null) ...[const SizedBox(width: 8), action!],
       ],
     );
   }

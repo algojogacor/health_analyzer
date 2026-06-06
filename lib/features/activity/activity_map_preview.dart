@@ -128,8 +128,8 @@ class _ActivityMapPreviewState extends ConsumerState<ActivityMapPreview> {
                   'Target route: ${targetRoute.name}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppTheme.muted,
+                  style: TextStyle(
+                    color: AppTheme.mutedText(context),
                     fontWeight: FontWeight.w800,
                   ),
                 ),

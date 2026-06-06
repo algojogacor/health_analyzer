@@ -13,6 +13,7 @@ class ThemeSettingsService {
     return switch (raw) {
       'light' => ThemeMode.light,
       'dark' => ThemeMode.dark,
+      'system' => ThemeMode.system,
       _ => ThemeMode.system,
     };
   }

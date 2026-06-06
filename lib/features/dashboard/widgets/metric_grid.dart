@@ -28,6 +28,7 @@ class MetricGrid extends StatelessWidget {
     final sleepDebtHours = ((480 - summary.asleepMinutes).clamp(0, 480) / 60);
     final weeklySteps =
         trends?.steps.fold<double>(0, (total, value) => total + value) ?? 0;
+    final accent = AppTheme.accent(context);
     final cards = [
       MetricCard(
         metricKey: 'steps',
@@ -41,7 +42,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'Phone source ${summary.phoneSteps} not merged'
                 : 'Target ${fmtNumber(goals.dailySteps)}',
         icon: Icons.directions_walk,
-        color: AppTheme.cyan,
+        color: accent,
         progress:
             (summary.wearableSteps / goals.dailySteps).clamp(0, 1).toDouble(),
         trendValues: trends?.steps,
@@ -53,7 +54,7 @@ class MetricGrid extends StatelessWidget {
         value: fmtNumber(summary.activeCalories, suffix: 'kcal'),
         detail: '-500 kcal target',
         icon: Icons.local_fire_department,
-        color: AppTheme.amber,
+        color: accent,
         progress: (summary.activeCalories / 500).clamp(0, 1).toDouble(),
         trendValues: trends?.calories,
       ),
@@ -67,7 +68,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'Sleep sensor not found'
                 : 'Target ${goals.sleepTargetLabel}',
         icon: Icons.nightlight_round,
-        color: AppTheme.violet,
+        color: accent,
         progress:
             (summary.asleepMinutes / goals.sleepTargetMinutes)
                 .clamp(0, 1)
@@ -84,7 +85,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'Heart-rate sensor not found'
                 : 'Min ${fmtNumber(summary.minHeartRate, suffix: 'bpm')}',
         icon: Icons.favorite,
-        color: AppTheme.coral,
+        color: accent,
       ),
       MetricCard(
         metricKey: 'blood_oxygen',
@@ -96,7 +97,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'SpO2 sensor not found'
                 : 'Min ${fmtNumber(summary.minSpo2, decimals: 1, suffix: '%')}',
         icon: Icons.bloodtype,
-        color: Colors.pink.shade500,
+        color: accent,
       ),
       MetricCard(
         metricKey: 'hrv',
@@ -108,7 +109,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'HRV/stress export not found'
                 : 'Stress proxy',
         icon: Icons.monitor_heart,
-        color: AppTheme.mint,
+        color: accent,
       ),
       MetricCard(
         metricKey: 'weight',
@@ -120,7 +121,7 @@ class MetricGrid extends StatelessWidget {
                 ? 'Manual entry not found'
                 : 'Manual source',
         icon: Icons.scale,
-        color: Colors.teal.shade600,
+        color: accent,
       ),
       MetricCard(
         metricKey: 'recovery',
@@ -129,7 +130,7 @@ class MetricGrid extends StatelessWidget {
         value: '${recoveryScore.round()}%',
         detail: summary.confidence,
         icon: Icons.favorite_border,
-        color: AppTheme.coral,
+        color: accent,
         progress: (recoveryScore / 100).clamp(0, 1).toDouble(),
       ),
       MetricCard(
@@ -139,7 +140,7 @@ class MetricGrid extends StatelessWidget {
         value: '${(weeklySteps / 1000).round()}k steps',
         detail: 'Lightweight load proxy',
         icon: Icons.query_stats,
-        color: Colors.indigo.shade500,
+        color: accent,
         trendValues: trends?.steps,
       ),
       MetricCard(
@@ -149,7 +150,7 @@ class MetricGrid extends StatelessWidget {
         value: fmtNumber(weeklySteps.round()),
         detail: 'Target ${fmtNumber(goals.weeklyStepTarget)}',
         icon: Icons.calendar_month_outlined,
-        color: Colors.cyan.shade700,
+        color: accent,
         progress: (weeklySteps / goals.weeklyStepTarget).clamp(0, 1).toDouble(),
         trendValues: trends?.steps,
       ),
@@ -160,7 +161,7 @@ class MetricGrid extends StatelessWidget {
         value: '${sleepDebtHours.toStringAsFixed(1)} h',
         detail: 'Target ${goals.sleepTargetLabel} sleep',
         icon: Icons.bedtime_outlined,
-        color: Colors.deepPurple.shade300,
+        color: accent,
         progress:
             (1 - (sleepDebtHours / (goals.sleepTargetMinutes / 60)))
                 .clamp(0, 1)
@@ -173,7 +174,7 @@ class MetricGrid extends StatelessWidget {
         value: '${recoveryScore.round()}%',
         detail: 'Recovery and data confidence',
         icon: Icons.energy_savings_leaf_outlined,
-        color: Colors.lightGreen.shade700,
+        color: accent,
         progress: (recoveryScore / 100).clamp(0, 1).toDouble(),
       ),
       MetricCard(
@@ -183,7 +184,7 @@ class MetricGrid extends StatelessWidget {
         value: '${trends?.steps.where((value) => value > 0).length ?? 0}/7',
         detail: 'Days with movement data',
         icon: Icons.apps_outage_outlined,
-        color: Colors.blueGrey.shade600,
+        color: accent,
         trendValues: trends?.steps,
       ),
     ];
@@ -199,7 +200,7 @@ class MetricGrid extends StatelessWidget {
         crossAxisCount: 2,
         crossAxisSpacing: 14,
         mainAxisSpacing: 14,
-        childAspectRatio: 0.92,
+        mainAxisExtent: 222,
       ),
       itemBuilder: (context, index) {
         final card = visibleCards[index];
@@ -263,9 +264,19 @@ class MetricCard extends StatelessWidget {
     return PremiumCard(
       onTap: onTap,
       padding: const EdgeInsets.all(14),
+      borderColor: AppTheme.border(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 42,
+            height: 4,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(999),
+            ),
+          ),
+          const SizedBox(height: 12),
           Row(
             children: [
               Expanded(
@@ -289,13 +300,20 @@ class MetricCard extends StatelessWidget {
             ),
           ),
           const Spacer(),
-          Text(
-            value,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w900,
-              color: AppTheme.text(context),
+          SizedBox(
+            height: 34,
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                  fontWeight: FontWeight.w900,
+                  color: AppTheme.text(context),
+                  letterSpacing: 0,
+                ),
+              ),
             ),
           ),
           const SizedBox(height: 4),
